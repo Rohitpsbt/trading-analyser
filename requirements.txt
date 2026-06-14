@@ -1,0 +1,14 @@
+# Core (free)
+yfinance>=0.2.40        # live NSE/BSE data on your machine (RELIANCE.NS etc.)
+feedparser>=6.0.10      # Google News RSS + other free RSS feeds
+pandas>=2.0
+
+# LLM thesis drafter — install ONLY the one you'll use (all have free tiers):
+# groq>=0.11                     # free tier; default. Set GROQ_API_KEY
+# google-generativeai>=0.7       # Gemini free tier. Set GEMINI_API_KEY
+# anthropic>=0.40                # Set ANTHROPIC_API_KEY
+
+# Later milestones (backtesting where data is honest):
+# vectorbt   /   backtrader   /   backtesting.py
+
+# sqlite3 is in the Python standard library — nothing to install.

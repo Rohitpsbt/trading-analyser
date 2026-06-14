@@ -1,0 +1,18 @@
+# Python
+__pycache__/
+*.py[cod]
+.pytest_cache/
+
+# Virtualenvs
+.venv/
+venv/
+env/
+
+# Local data — your real ledger of calls stays out of version control
+*.db
+
+# macOS
+.DS_Store
+
+# Secrets / local env
+.env
