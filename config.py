@@ -8,6 +8,28 @@ they are not buy recommendations. Replace/extend them with your own coverage.
 from __future__ import annotations
 import os
 
+
+def _load_dotenv(path: str | None = None) -> None:
+    """Minimal .env loader (no dependency). Reads KEY=VALUE lines from a .env in
+    the project root so API keys persist in a file instead of a shell session.
+    Real environment variables always win (we never overwrite them). .env is
+    git-ignored — keep your keys out of version control."""
+    path = path or os.path.join(os.path.dirname(os.path.abspath(__file__)), ".env")
+    try:
+        with open(path) as fh:
+            for line in fh:
+                line = line.strip()
+                if not line or line.startswith("#") or "=" not in line:
+                    continue
+                key, _, val = line.partition("=")
+                os.environ.setdefault(key.strip(), val.strip().strip('"').strip("'"))
+    except FileNotFoundError:
+        pass
+
+
+# Load .env BEFORE anything below reads os.getenv (LLM keys, DB_PATH, ...).
+_load_dotenv()
+
 # ---------------------------------------------------------------------------
 # Data source
 # ---------------------------------------------------------------------------

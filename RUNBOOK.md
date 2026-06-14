@@ -13,8 +13,12 @@ pip install -r requirements.txt
 
 # Optional but recommended — live LLM thesis narrative (pick ONE free tier):
 pip install groq                                  # default provider
-export TA_LLM_PROVIDER=groq
-export GROQ_API_KEY=...                            # from console.groq.com
+
+# Put your keys in a .env file (loaded automatically; git-ignored). Do this once
+# and they persist — unlike `export`, which only lasts one terminal session:
+cp .env.example .env                              # then edit .env:
+#   TA_LLM_PROVIDER=groq
+#   GROQ_API_KEY=...                              # from console.groq.com
 # anthropic / gemini also supported — the model auto-selects per provider; override
 # with TA_LLM_MODEL. Without any key, thesis falls back to an offline template.
 
@@ -27,7 +31,7 @@ export GROQ_API_KEY=...  GEMINI_API_KEY=...        # gemini key from aistudio.go
 ## Preflight — run before any live session
 
 ```bash
-python run.py doctor
+python3 run.py doctor
 ```
 
 Confirms: which LLM provider/model is active and whether its key is set; that

@@ -189,7 +189,7 @@ def cmd_doctor(args):
         print(f"  model           : {config.model_for(provider)}")
         if not key_set:
             print(f"  -> no key: thesis uses the OFFLINE template (no narrative). "
-                  f"Set {env_var} or change TA_LLM_PROVIDER.")
+                  f"Put {env_var} in a .env file (cp .env.example .env) or export it.")
     else:
         print("  (no LLM provider configured — thesis uses the offline template)")
 
