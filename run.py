@@ -19,9 +19,9 @@ from __future__ import annotations
 import argparse
 
 import config
-from providers import get_provider
+from providers import get_provider, MockProvider
 from screening import screen_universe, screen_one
-from catalysts import SupplierLinkage
+from catalysts import SupplierLinkage, NewsMonitor
 from credibility import assess
 from redteam import run_automated, breakeven_move_pct
 from thesis import draft_thesis
@@ -131,6 +131,55 @@ def cmd_report(args):
           f"before tax — alpha must clear this)")
 
 
+def cmd_doctor(args):
+    """Preflight: check the LLM and live-data paths so live runs fail loudly,
+    not by silently degrading to mock/offline."""
+    print("\nTrading Analyser — preflight check\n" + "=" * 64)
+
+    # LLM provider / key / resolved model.
+    cfg = config.LLM
+    provider = (cfg.get("provider") or "none").lower()
+    env_var = {"groq": "GROQ_API_KEY", "anthropic": "ANTHROPIC_API_KEY",
+               "gemini": "GEMINI_API_KEY"}.get(provider)
+    print(f"LLM provider     : {provider}")
+    if env_var:
+        key_set = bool(cfg.get(f"{provider}_api_key"))
+        print(f"  {env_var:<18}: {'set' if key_set else 'NOT set'}")
+        print(f"  model           : {config.model_for(provider)}")
+        if not key_set:
+            print(f"  -> no key: thesis uses the OFFLINE template (no narrative). "
+                  f"Set {env_var} or change TA_LLM_PROVIDER.")
+    else:
+        print("  (no LLM provider configured — thesis uses the offline template)")
+
+    # Market data (yfinance) reachability.
+    print("\nMarket data (yfinance):")
+    try:
+        prov = get_provider(use_mock=False)
+        if isinstance(prov, MockProvider):
+            print("  yfinance unavailable — would fall back to MockProvider (no live data).")
+        else:
+            f = prov.get_fundamentals("RELIANCE")
+            if f.price:
+                print(f"  OK — RELIANCE ₹{f.price}, data completeness {f.completeness():.0%}")
+            else:
+                print(f"  reachable but no price returned; gaps: {f.data_gaps[:3]}")
+    except Exception as e:
+        print(f"  FAILED: {type(e).__name__}: {e}")
+
+    # News feed (Google News RSS) reachability — also exercises the SSL fix.
+    print("\nNews feed (Google News RSS):")
+    items, err = NewsMonitor().fetch("Reliance capex", limit=3)
+    if err:
+        print(f"  FAILED: {err}")
+    else:
+        print(f"  OK — fetched {len(items)} headlines")
+        for it in items[:2]:
+            print(f"     - {it.title[:70]}")
+
+    print("\nFix anything that FAILED above before logging live calls.")
+
+
 def _pct(v):
     return f"{v*100:.1f}%" if isinstance(v, (int, float)) else "n/a"
 
@@ -164,6 +213,10 @@ def build_parser():
     s.set_defaults(func=cmd_grade)
 
     s = sub.add_parser("report"); s.set_defaults(func=cmd_report)
+
+    s = sub.add_parser("doctor",
+                       help="preflight: check LLM key/model + live data/news reachability")
+    s.set_defaults(func=cmd_doctor)
     return p
 
 

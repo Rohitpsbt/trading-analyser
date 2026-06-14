@@ -2,6 +2,7 @@
 yfinance>=0.2.40        # live NSE/BSE data on your machine (RELIANCE.NS etc.)
 feedparser>=6.0.10      # Google News RSS + other free RSS feeds
 pandas>=2.0
+certifi>=2024.0         # CA bundle for the news feed (fixes macOS SSL cert errors)
 
 # LLM thesis drafter — install ONLY the one you'll use (all have free tiers):
 # groq>=0.11                     # free tier; default. Set GROQ_API_KEY

@@ -12,12 +12,23 @@ methods degrade gracefully (return empty + a reason). On your machine they work.
 from __future__ import annotations
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
+import ssl
 import urllib.parse
 import urllib.request
 
 import config
 
 _UA = "Mozilla/5.0 (TradingAnalyser/0.1)"
+
+# Use certifi's CA bundle if available. Stock Python on macOS often isn't wired
+# to the system trust store, so the default context throws CERTIFICATE_VERIFY_FAILED
+# and silently kills the entire news feed. certifi ships transitively with
+# yfinance/requests; if it's somehow missing we fall back to the default context.
+try:
+    import certifi
+    _SSL_CTX: ssl.SSLContext | None = ssl.create_default_context(cafile=certifi.where())
+except Exception:
+    _SSL_CTX = None
 
 
 @dataclass
@@ -54,7 +65,7 @@ class NewsMonitor:
         url = self._google_news_rss(query)
         try:
             req = urllib.request.Request(url, headers={"User-Agent": _UA})
-            with urllib.request.urlopen(req, timeout=15) as resp:
+            with urllib.request.urlopen(req, timeout=15, context=_SSL_CTX) as resp:
                 raw = resp.read()
         except Exception as e:
             return [], f"news fetch blocked/failed ({type(e).__name__}): {e}"

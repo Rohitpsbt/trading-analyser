@@ -84,12 +84,13 @@ Draft the thesis as JSON now."""
 def _call_llm(system: str, user: str) -> str | None:
     cfg = config.LLM
     provider = (cfg.get("provider") or "none").lower()
+    model = config.model_for(provider)  # explicit override or per-provider default
     try:
         if provider == "groq" and cfg.get("groq_api_key"):
             from groq import Groq
             client = Groq(api_key=cfg["groq_api_key"])
             r = client.chat.completions.create(
-                model=cfg["model"],
+                model=model,
                 messages=[{"role": "system", "content": system},
                           {"role": "user", "content": user}],
                 temperature=0.2, response_format={"type": "json_object"})
@@ -97,14 +98,14 @@ def _call_llm(system: str, user: str) -> str | None:
         if provider == "gemini" and cfg.get("gemini_api_key"):
             import google.generativeai as genai
             genai.configure(api_key=cfg["gemini_api_key"])
-            model = genai.GenerativeModel(cfg["model"])
-            r = model.generate_content(system + "\n\n" + user)
+            gmodel = genai.GenerativeModel(model)
+            r = gmodel.generate_content(system + "\n\n" + user)
             return r.text
         if provider == "anthropic" and cfg.get("anthropic_api_key"):
             import anthropic
             client = anthropic.Anthropic(api_key=cfg["anthropic_api_key"])
             r = client.messages.create(
-                model=cfg["model"], max_tokens=1500, system=system,
+                model=model, max_tokens=1500, system=system,
                 messages=[{"role": "user", "content": user}])
             return r.content[0].text
     except Exception as e:

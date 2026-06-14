@@ -103,13 +103,30 @@ COSTS = {
 # Set the matching env var. If none is set, thesis drafting falls back to an
 # offline structured template (no narrative, but the pipeline still runs).
 # ---------------------------------------------------------------------------
+# Per-provider default model, used when TA_LLM_MODEL is NOT explicitly set.
+# (Previously a single Groq model id was the default for every provider, so
+# TA_LLM_PROVIDER=anthropic/gemini without an explicit model sent an invalid
+# model id and the call failed.) Override any of these with TA_LLM_MODEL.
+DEFAULT_MODELS = {
+    "groq": "llama-3.1-8b-instant",   # free tier; Groq rotates models — bump to
+                                      # llama-3.3-70b-versatile for a stronger draft
+    "anthropic": "claude-haiku-4-5",  # cheap & capable; claude-sonnet-4-6 for deeper analysis
+    "gemini": "gemini-2.0-flash",     # Gemini free tier
+}
+
 LLM = {
     "provider": os.getenv("TA_LLM_PROVIDER", "groq"),  # groq | gemini | anthropic | none
-    "model": os.getenv("TA_LLM_MODEL", "llama-3.1-8b-instant"),
+    "model": os.getenv("TA_LLM_MODEL"),                # None -> per-provider default below
     "groq_api_key": os.getenv("GROQ_API_KEY"),
     "gemini_api_key": os.getenv("GEMINI_API_KEY"),
     "anthropic_api_key": os.getenv("ANTHROPIC_API_KEY"),
 }
+
+
+def model_for(provider: str) -> str:
+    """Resolve the model to use: explicit TA_LLM_MODEL override, else the
+    default for this provider. Avoids sending a Groq model id to Anthropic/Gemini."""
+    return LLM.get("model") or DEFAULT_MODELS.get(provider, "")
 
 DB_PATH = os.getenv("TA_DB_PATH", "trading_analyser.db")
 
