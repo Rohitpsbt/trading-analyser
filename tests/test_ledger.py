@@ -7,13 +7,13 @@ from thesis import Thesis
 from ledger import Ledger
 
 
-def _thesis(symbol="HFCL", ref=100.0, conviction="MEDIUM"):
+def _thesis(symbol="HFCL", ref=100.0, conviction="MEDIUM", source=""):
     return Thesis(
         symbol=symbol, name=symbol, as_of=date.today().isoformat(), catalyst="cat",
         conviction=conviction, suggested_action="BUY_CANDIDATE", reference_price=ref,
         fundamental_summary="fs", credibility_flag="CREDIBLE",
         bull_case="bull", bear_case="bear", exit_conditions="exit",
-        redteam={"ruin": "x"}, narrated=False)
+        redteam={"ruin": "x"}, narrated=False, source=source)
 
 
 @pytest.fixture()
@@ -67,3 +67,42 @@ def test_performance_aggregates_hit_rate_and_by_conviction(ledger):
 
 def test_performance_empty_ledger(ledger):
     assert ledger.performance()["graded"] == 0
+
+
+def test_source_is_persisted(ledger):
+    ledger.record(_thesis(source="groq:llama-3.1-8b-instant"))
+    row = ledger.open_theses()[0]
+    assert row["source"] == "groq:llama-3.1-8b-instant"
+
+
+def test_performance_breaks_down_by_source(ledger):
+    g = ledger.record(_thesis(ref=100.0, source="groq:llama"))
+    gm = ledger.record(_thesis(ref=100.0, source="gemini:flash"))
+    ledger.grade(g, 120.0, "RIGHT")   # groq +20%, right
+    ledger.grade(gm, 90.0, "WRONG")   # gemini -10%, wrong
+    bs = ledger.performance()["by_source"]
+    assert bs["groq"]["hit_rate"] == 1.0
+    assert bs["groq"]["avg_pnl_pct"] == pytest.approx(0.20)
+    assert bs["gemini"]["hit_rate"] == 0.0
+    assert bs["gemini"]["avg_pnl_pct"] == pytest.approx(-0.10)
+
+
+def test_legacy_db_without_source_column_is_migrated(tmp_path):
+    """A DB created before the `source` column exists must gain it on open."""
+    import sqlite3
+    path = str(tmp_path / "legacy.db")
+    conn = sqlite3.connect(path)
+    conn.executescript(
+        """CREATE TABLE theses (
+               id INTEGER PRIMARY KEY AUTOINCREMENT, created TEXT, symbol TEXT,
+               name TEXT, catalyst TEXT, conviction TEXT, suggested_action TEXT,
+               reference_price REAL, credibility_flag TEXT, narrated INTEGER,
+               payload TEXT, status TEXT DEFAULT 'OPEN');""")
+    conn.commit()
+    conn.close()
+
+    led = Ledger(db_path=path)
+    cols = {r["name"] for r in led.conn.execute("PRAGMA table_info(theses)")}
+    assert "source" in cols
+    assert led.record(_thesis(source="groq:x")) == 1
+    led.close()

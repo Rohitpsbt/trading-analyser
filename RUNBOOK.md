@@ -17,6 +17,11 @@ export TA_LLM_PROVIDER=groq
 export GROQ_API_KEY=...                            # from console.groq.com
 # anthropic / gemini also supported — the model auto-selects per provider; override
 # with TA_LLM_MODEL. Without any key, thesis falls back to an offline template.
+
+# For the second-opinion mode (Groq + Gemini side by side) install BOTH and set
+# BOTH keys:
+pip install groq google-generativeai
+export GROQ_API_KEY=...  GEMINI_API_KEY=...        # gemini key from aistudio.google.com
 ```
 
 ## Preflight — run before any live session
@@ -46,6 +51,13 @@ silently disables the entire catalyst edge.
    ```bash
    python run.py thesis HFCL --catalyst "Jio fibre capex order" --save
    ```
+   **Second opinion** — draft from Groq *and* Gemini, show both, and flag where
+   they disagree on conviction/action (agreement corroborates; disagreement is a
+   signal to dig deeper). Saves both views as separate ledger rows so `report`
+   can later tell you which model calls better:
+   ```bash
+   python run.py thesis HFCL --catalyst "Jio fibre capex order" --second-opinion --save
+   ```
 4. **Review open calls**:
    ```bash
    python run.py ledger
@@ -55,7 +67,8 @@ silently disables the entire catalyst edge.
    ```bash
    python run.py grade 1 --price 512.50 --verdict RIGHT --note "theme played out"
    ```
-6. **Forward-track performance** (hit rate, P&L, P&L by conviction):
+6. **Forward-track performance** (hit rate, P&L, P&L by conviction, and — if you
+   use second-opinion — a per-model scoreboard under `by_source`):
    ```bash
    python run.py report
    ```

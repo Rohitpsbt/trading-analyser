@@ -8,6 +8,8 @@ certifi>=2024.0         # CA bundle for the news feed (fixes macOS SSL cert erro
 # groq>=0.11                     # free tier; default. Set GROQ_API_KEY
 # google-generativeai>=0.7       # Gemini free tier. Set GEMINI_API_KEY
 # anthropic>=0.40                # Set ANTHROPIC_API_KEY
+# For `thesis --second-opinion` (Groq + Gemini side by side) install BOTH
+# groq and google-generativeai, and set BOTH GROQ_API_KEY and GEMINI_API_KEY.
 
 # Later milestones (backtesting where data is honest):
 # vectorbt   /   backtrader   /   backtesting.py

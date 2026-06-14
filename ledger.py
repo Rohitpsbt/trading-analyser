@@ -27,6 +27,7 @@ CREATE TABLE IF NOT EXISTS theses (
     reference_price REAL,
     credibility_flag TEXT,
     narrated INTEGER,
+    source TEXT,                    -- model that produced it, e.g. "groq:..." (for second-opinion tracking)
     payload TEXT NOT NULL,          -- full thesis JSON
     status TEXT DEFAULT 'OPEN'      -- OPEN | GRADED | CLOSED
 );
@@ -49,16 +50,25 @@ class Ledger:
         self.conn = sqlite3.connect(self.path)
         self.conn.row_factory = sqlite3.Row
         self.conn.executescript(_SCHEMA)
+        self._migrate()
         self.conn.commit()
+
+    def _migrate(self) -> None:
+        """Idempotently add columns introduced after a DB was first created
+        (CREATE TABLE IF NOT EXISTS won't alter an existing table)."""
+        cols = {r["name"] for r in self.conn.execute("PRAGMA table_info(theses)")}
+        if "source" not in cols:
+            self.conn.execute("ALTER TABLE theses ADD COLUMN source TEXT")
 
     def record(self, t: Thesis) -> int:
         cur = self.conn.execute(
             """INSERT INTO theses (created, symbol, name, catalyst, conviction,
-               suggested_action, reference_price, credibility_flag, narrated, payload)
-               VALUES (?,?,?,?,?,?,?,?,?,?)""",
+               suggested_action, reference_price, credibility_flag, narrated,
+               source, payload)
+               VALUES (?,?,?,?,?,?,?,?,?,?,?)""",
             (t.as_of, t.symbol, t.name, t.catalyst, t.conviction,
              t.suggested_action, t.reference_price, t.credibility_flag,
-             int(t.narrated), t.to_json()))
+             int(t.narrated), t.source, t.to_json()))
         self.conn.commit()
         return cur.lastrowid
 
@@ -88,22 +98,37 @@ class Ledger:
 
     def performance(self) -> dict:
         rows = list(self.conn.execute("""
-            SELECT t.conviction, g.verdict, g.pnl_pct
+            SELECT t.conviction, t.source, g.verdict, g.pnl_pct
             FROM grades g JOIN theses t ON t.id = g.thesis_id"""))
         if not rows:
             return {"graded": 0, "note": "no graded theses yet — come back after calls mature."}
         pnls = [r["pnl_pct"] for r in rows if r["pnl_pct"] is not None]
         right = sum(1 for r in rows if r["verdict"] == "RIGHT")
         by_conv: dict[str, list[float]] = {}
+        # Per-model scoreboard: which LLM actually makes the better calls? Keyed by
+        # short source ("groq"/"gemini"/"offline"); tracks hit rate and avg P&L.
+        by_source: dict[str, dict] = {}
         for r in rows:
             if r["pnl_pct"] is not None:
                 by_conv.setdefault(r["conviction"], []).append(r["pnl_pct"])
+            src = (r["source"] or "unknown").split(":", 1)[0]
+            s = by_source.setdefault(src, {"n": 0, "right": 0, "pnls": []})
+            s["n"] += 1
+            s["right"] += 1 if r["verdict"] == "RIGHT" else 0
+            if r["pnl_pct"] is not None:
+                s["pnls"].append(r["pnl_pct"])
         return {
             "graded": len(rows),
             "hit_rate": round(right / len(rows), 2),
             "avg_pnl_pct": round(sum(pnls) / len(pnls), 4) if pnls else None,
             "avg_pnl_by_conviction": {
                 k: round(sum(v) / len(v), 4) for k, v in by_conv.items()},
+            "by_source": {
+                src: {"graded": s["n"],
+                      "hit_rate": round(s["right"] / s["n"], 2),
+                      "avg_pnl_pct": round(sum(s["pnls"]) / len(s["pnls"]), 4)
+                      if s["pnls"] else None}
+                for src, s in by_source.items()},
         }
 
     def close(self):
