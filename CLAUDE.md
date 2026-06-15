@@ -3,9 +3,9 @@
 Decision-support engine for Indian equities (NSE/BSE): screen → catalyst /
 supplier-linkage → credibility flag → red-team → LLM thesis → graded SQLite
 ledger. It generates signals a human reviews and executes; it never places
-orders. See [README.md](README.md) for the product, [RUNBOOK.md](RUNBOOK.md)
-for how to operate it, [Build.md](Build.md) for the original strategy brief, and
-[MEMORY.md](MEMORY.md) for current status / what we're working on.
+orders. See [README.md](README.md) for the product & strategy,
+[RUNBOOK.md](RUNBOOK.md) for how to operate it, and [MEMORY.md](MEMORY.md) for
+current status / what we're working on.
 
 ## How to work in this repo
 

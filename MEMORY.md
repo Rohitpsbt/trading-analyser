@@ -50,8 +50,8 @@ the **forward paper-tracking** phase per the README's deployment ladder
   as exposed. (Groq key already rotated.)
 - [ ] **Universe hygiene:** `config.UNIVERSE` has stale `TATAMOTORS` (404s on
   Yahoo post-demerger). Curating the universe + linkage map is the real edge.
-- [ ] `trading_analyser.zip` in the repo root is redundant (everything extracted
-  & committed) and git-ignored-from-tracking — safe to delete.
+- [x] Removed redundant `trading_analyser.zip` and merged `Build.md` (the build
+  brief) into [README.md](README.md) — docs are now README / RUNBOOK / CLAUDE / MEMORY.
 
 **Possible enhancements**
 - [ ] Per-provider model override (e.g. `TA_GEMINI_MODEL`) so `TA_LLM_MODEL`

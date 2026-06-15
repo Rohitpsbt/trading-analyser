@@ -1,8 +1,7 @@
 # Runbook — setup & the live "log real calls" loop
 
-How to set up and operate the engine. For *what it is and why*, see
-[README.md](README.md); for the original build brief / strategy spec, see
-[Build.md](Build.md).
+How to set up and operate the engine. For *what it is, the strategy, and why*,
+see [README.md](README.md).
 
 ## One-time setup
 

@@ -22,22 +22,23 @@ per name, and logs every call to a **ledger** you grade over time.
 ## Free stack (₹0 to build, paper-test, even go live)
 | Layer | Free option |
 |---|---|
-| Market data | yfinance (`RELIANCE.NS`), or `pnsea`/`jugaad-data` |
-| Broker/execution | ICICI **Breeze** API (free) or **Upstox** API (free) |
+| Market data | yfinance (`RELIANCE.NS`), or `pnsea`/`jugaad-data` (NSE scrapers, fragile) |
+| Broker/execution | ICICI **Breeze** or **Upstox** API (free); Zerodha **Kite** (₹500/mo) optional |
 | News | **Google News RSS** (built in), plus ET/Moneycontrol/Mint RSS, GDELT |
 | Fundamentals | yfinance financials, BSE/NSE filings, concall transcripts |
-| LLM thesis | **Groq** free tier (default), local **Ollama**, or Gemini free tier |
+| LLM thesis | **Groq** (default) · **Gemini** · local **Ollama**; FinBERT/VADER for classical sentiment |
 | Backtest/store/host | backtrader/vectorbt · SQLite · local / GitHub Actions / Oracle free VM |
 
 ## Setup
 ```bash
 pip install -r requirements.txt
-# Optional LLM narrative (pick one, all have free tiers):
-pip install groq           # then: export GROQ_API_KEY=...
-export TA_LLM_PROVIDER=groq TA_LLM_MODEL=llama-3.1-8b-instant
+pip install groq           # optional LLM narrative (Groq free tier; default)
+cp .env.example .env       # put GROQ_API_KEY / GEMINI_API_KEY here (git-ignored)
 ```
 Without an LLM key it still runs — thesis drafting falls back to an offline
-structured template (no narrative, all fields populated).
+structured template (no narrative, all fields populated). See
+[RUNBOOK.md](RUNBOOK.md) for full setup, the `doctor` preflight, and the daily
+operating loop.
 
 ## Use
 ```bash
@@ -58,8 +59,10 @@ Add `--mock` to any data command to run with synthetic data and no network
   backtests. Every call is dated and graded as reality unfolds — that's the real
   validation.
 - **Deployment ladder.** Backtest only where data is honest → **paper-trade on
-  live data** → tiny live capital (₹5–10k) with hard circuit breakers → scale
-  *only* if live matches paper.
+  live data** → tiny live capital (₹5–10k) with hard circuit breakers (max daily
+  loss, max position size, max trades/day, kill switch) → scale *only* if live
+  matches paper. Note: live API trading via Indian brokers requires a **static IP
+  from 1 Apr 2026**.
 
 ## Red-team checklist (runs on every thesis)
 1. Hidden assumption · 2. Look-ahead · 3. Base rate · 4. Already priced in ·
