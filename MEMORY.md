@@ -16,7 +16,7 @@ position sizing + circuit breakers — deliberately before any broker feed.
 
 - **Full M1 pipeline:** screen → scan-catalysts (supplier-linkage) → thesis →
   ledger → grade → report. Runs in `--mock` and live.
-- **Tested:** 119 pytest tests, no network required. Green as of last run.
+- **Tested:** 121 pytest tests, no network required. Green as of last run.
 - **M2 so far:**
   - **Extra RSS feeds** (ET / Moneycontrol / Business Standard) merged + deduped
     with Google News in `scan-catalysts`; `doctor` checks each feed.
@@ -81,8 +81,8 @@ position sizing + circuit breakers — deliberately before any broker feed.
 - [x] **M2:** more RSS sources beyond Google News; buyer→supplier auto-discovery
   (entity resolution); feed real concall guidance history into the credibility flag.
   *(Next for M2: broaden COMPANY_ALIASES coverage; per-provider model override.)*
-- [~] **M3:** risk layer (sizing + circuit breakers) **done** via `size`; still
-  to do — paper-trading loop on a live (free) broker feed. *(Next for M3: auto-fill
-  grade price from the provider; real position/exposure tracking beyond the
-  thesis-as-position proxy.)*
+- [~] **M3:** risk layer (sizing + circuit breakers) **done** via `size`;
+  auto-fill grade price from the provider **done** (`grade` without `--price`).
+  Still to do — paper-trading loop on a live (free) broker feed. *(Next for M3:
+  real position/exposure tracking beyond the thesis-as-position proxy.)*
 - [ ] **M4:** honest backtest harness only where point-in-time data exists.

@@ -233,7 +233,26 @@ def cmd_ledger(args):
 
 def cmd_grade(args):
     led = Ledger()
-    res = led.grade(args.id, args.price, args.verdict, args.note or "")
+    price = args.price
+
+    # Auto-fill the grade price from the provider when --price is omitted.
+    if price is None:
+        row = led.get(args.id)
+        if not row:
+            print(f"thesis #{args.id} not found.")
+            led.close()
+            return
+        provider = get_provider(use_mock=args.mock)
+        price = provider.get_price(row["symbol"])
+        if price is None:
+            print(f"Could not fetch a live price for {row['symbol']} — "
+                  f"pass --price explicitly.")
+            led.close()
+            return
+        print(f"Fetched {'MOCK' if args.mock else 'live'} price for "
+              f"{row['symbol']}: ₹{price:,.2f}")
+
+    res = led.grade(args.id, price, args.verdict, args.note or "")
     led.close()
     pnl = res["pnl_pct"]
     print(f"Graded thesis #{res['thesis_id']}: {res['verdict']}, "
@@ -411,9 +430,10 @@ def build_parser():
 
     s = sub.add_parser("ledger"); s.set_defaults(func=cmd_ledger)
 
-    s = sub.add_parser("grade")
+    s = sub.add_parser("grade"); add_mock(s)
     s.add_argument("id", type=int)
-    s.add_argument("--price", type=float, required=True)
+    s.add_argument("--price", type=float,
+                   help="grade price; omit to auto-fetch the current price")
     s.add_argument("--verdict", required=True, choices=["RIGHT", "WRONG", "EARLY", "NOISE"])
     s.add_argument("--note", default="")
     s.set_defaults(func=cmd_grade)

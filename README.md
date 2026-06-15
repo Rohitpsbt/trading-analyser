@@ -49,7 +49,7 @@ python run.py guidance HFCL --year 2024 --guided "20% rev" --delivered "12%" --m
 python run.py thesis HFCL --catalyst "Jio fibre capex" --save
 python run.py size --thesis 1 --account 200000 # position size + circuit breakers
 python run.py ledger                          # open calls
-python run.py grade 1 --price 512.5 --verdict RIGHT --note "theme played out"
+python run.py grade 1 --verdict RIGHT --note "theme played out"  # --price auto-fetched
 python run.py report                          # forward-track performance
 ```
 Add `--mock` to any data command to run with synthetic data and no network

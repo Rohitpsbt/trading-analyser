@@ -88,9 +88,11 @@ silently disables the entire catalyst edge.
    python run.py ledger
    ```
 6. **Grade as reality unfolds** (days/weeks later) — verdict ∈
-   RIGHT | WRONG | EARLY | NOISE:
+   RIGHT | WRONG | EARLY | NOISE. Omit `--price` to auto-fetch the current price
+   for the thesis's symbol (pass it explicitly to grade at a specific level):
    ```bash
-   python run.py grade 1 --price 512.50 --verdict RIGHT --note "theme played out"
+   python run.py grade 1 --verdict RIGHT --note "theme played out"  # auto-priced
+   python run.py grade 1 --price 512.50 --verdict RIGHT             # explicit
    ```
 7. **Forward-track performance** (hit rate, P&L, P&L by conviction, and — if you
    use second-opinion — a per-model scoreboard under `by_source`):
@@ -98,8 +100,9 @@ silently disables the entire catalyst edge.
    python run.py report
    ```
 
-Add `--mock` to `screen` / `scan-catalysts` / `thesis` to exercise the pipeline
-with deterministic synthetic data and no network.
+Add `--mock` to `screen` / `scan-catalysts` / `thesis` / `grade` to exercise the
+pipeline with deterministic synthetic data and no network (on `grade`, `--mock`
+sources the auto-fetched price from the mock provider).
 
 ## LLM cost & rate limits (especially Gemini)
 
@@ -129,7 +132,7 @@ Back it up yourself; it *is* your track record.
 ## Tests
 
 ```bash
-python -m pytest        # 102 tests, no network required
+python -m pytest        # 121 tests, no network required
 ```
 
 ## Deployment ladder (don't skip steps — from the README)

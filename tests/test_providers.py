@@ -20,6 +20,18 @@ def test_get_provider_mock_flag():
     assert isinstance(get_provider(use_mock=True), MockProvider)
 
 
+def test_mock_get_price_matches_fundamentals():
+    mp = MockProvider()
+    assert mp.get_price("HFCL") == mp.get_fundamentals("HFCL").price
+
+
+def test_get_price_default_pulls_from_fundamentals(monkeypatch):
+    provider = YFinanceProvider()
+    fake = _FakeTicker({"shortName": "Test Co", "currentPrice": 123.45})
+    monkeypatch.setattr(provider, "_ticker", lambda symbol: fake)
+    assert provider.get_price("TEST") == 123.45
+
+
 def test_completeness_fraction():
     f = Fundamentals(symbol="X", revenue_growth=0.1, roe=0.1, operating_margin=0.1)
     assert f.completeness() == 3 / 5  # 3 of 5 tracked fields present

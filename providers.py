@@ -52,6 +52,11 @@ class MarketDataProvider(ABC):
         """Price return over the lookback window, as a fraction."""
         ...
 
+    def get_price(self, symbol: str) -> Optional[float]:
+        """Latest price. Default pulls it from fundamentals; a provider with a
+        cheaper quote endpoint may override. Used to auto-fill the grade price."""
+        return self.get_fundamentals(symbol).price
+
 
 class YFinanceProvider(MarketDataProvider):
     """Real provider. Requires internet. yfinance fundamentals are incomplete
