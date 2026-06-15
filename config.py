@@ -143,6 +143,15 @@ RISK = {
     # the catalyst is likely already priced — flag, don't chase.
     "already_run_lookback_days": 30,
     "already_run_threshold_pct": 0.25,
+    # Conviction-scaled sizing: fraction of max_position_pct to deploy per
+    # conviction tier (HIGH gets the full cap; LOW gets a probe). A sizing tool,
+    # never an order — you review and execute.
+    "conviction_sizing": {"LOW": 0.4, "MEDIUM": 0.7, "HIGH": 1.0},
+    # Circuit breakers (the README's 'tiny live capital' rung). Enforced as
+    # warnings by `run.py size` against the ledger, treating each saved thesis as
+    # a paper position until real position tracking arrives.
+    "max_open_positions": 8,        # cap concurrent paper positions
+    "max_trades_per_day": 3,        # cap new calls logged in a single day
 }
 
 # ---------------------------------------------------------------------------

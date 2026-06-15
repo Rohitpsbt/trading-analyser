@@ -28,6 +28,7 @@ from thesis import draft_thesis, draft_second_opinion
 from ledger import Ledger
 from guidance import load_guidance, add_guidance, all_guidance
 from linkage import discover_suppliers
+from sizing import plan_position, circuit_breakers
 
 
 def cmd_screen(args):
@@ -239,6 +240,62 @@ def cmd_grade(args):
           f"P&L {('%.1f%%' % (pnl*100)) if pnl is not None else 'n/a'}")
 
 
+def cmd_size(args):
+    """Position sizing + circuit breakers. Decision-support — never an order."""
+    symbol, entry, conviction = args.symbol, args.entry, args.conviction
+    led = Ledger()
+
+    # Pull defaults from a saved thesis when --thesis is given.
+    if args.thesis is not None:
+        row = led.get(args.thesis)
+        if not row:
+            print(f"thesis #{args.thesis} not found.")
+            led.close()
+            return
+        symbol = symbol or row["symbol"]
+        entry = entry if entry is not None else row["reference_price"]
+        conviction = conviction or row["conviction"]
+
+    conviction = conviction or "MEDIUM"
+    if not symbol or entry is None:
+        print("Need a symbol and --entry (or --thesis <id> to pull both from the ledger).")
+        led.close()
+        return
+
+    try:
+        plan = plan_position(symbol, args.account, float(entry), conviction,
+                             stop_pct=args.stop_pct)
+    except ValueError as e:
+        print(f"Cannot size: {e}")
+        led.close()
+        return
+
+    print("\n" + "=" * 64)
+    print(f"POSITION PLAN  {plan.symbol}   account ₹{plan.account_size:,.0f}   "
+          f"conviction {plan.conviction}")
+    print("=" * 64)
+    print(f"Entry (ref)     : ₹{plan.entry:,.2f}")
+    print(f"Shares          : {plan.shares}")
+    print(f"Position value  : ₹{plan.position_value:,.2f}  "
+          f"({plan.position_pct:.1%} of book, cap {config.RISK['max_position_pct']:.0%})")
+    print(f"Stop            : ₹{plan.stop_price:,.2f}  (-{plan.stop_pct:.0%})")
+    print(f"Capital at risk : ₹{plan.risk_value:,.2f}  ({plan.risk_pct:.2%} of book)")
+    print(f"2R ref target   : ₹{plan.target_price:,.2f}  "
+          f"(reference only — your thesis exit conditions govern)")
+    for n in plan.notes:
+        print(f"   ! {n}")
+
+    breaches = circuit_breakers(led)
+    led.close()
+    print("\nCircuit breakers:")
+    if not breaches:
+        print("   OK — within open-position and trades-per-day caps.")
+    else:
+        for b in breaches:
+            print(f"   ✗ {b}")
+    print("\n(sizing is decision-support; you review and place any order yourself)")
+
+
 def cmd_report(args):
     led = Ledger()
     perf = led.performance()
@@ -360,6 +417,21 @@ def build_parser():
     s.add_argument("--verdict", required=True, choices=["RIGHT", "WRONG", "EARLY", "NOISE"])
     s.add_argument("--note", default="")
     s.set_defaults(func=cmd_grade)
+
+    s = sub.add_parser("size",
+                       help="position sizing + circuit breakers (decision-support)")
+    s.add_argument("symbol", nargs="?", default="",
+                   help="ticker (optional if --thesis is given)")
+    s.add_argument("--account", type=float, required=True,
+                   help="account/book size in ₹")
+    s.add_argument("--entry", type=float, help="entry/reference price")
+    s.add_argument("--conviction", choices=["LOW", "MEDIUM", "HIGH"],
+                   help="conviction tier (scales size); default MEDIUM")
+    s.add_argument("--stop-pct", type=float, dest="stop_pct",
+                   help="stop distance as a fraction (default config.RISK)")
+    s.add_argument("--thesis", type=int,
+                   help="pull symbol/entry/conviction from this saved thesis id")
+    s.set_defaults(func=cmd_size)
 
     s = sub.add_parser("report"); s.set_defaults(func=cmd_report)
 

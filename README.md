@@ -47,6 +47,7 @@ python run.py scan-catalysts                  # supplier-linkage news scan
 python run.py discover                         # auto-discover unmapped suppliers in theme news
 python run.py guidance HFCL --year 2024 --guided "20% rev" --delivered "12%" --missed
 python run.py thesis HFCL --catalyst "Jio fibre capex" --save
+python run.py size --thesis 1 --account 200000 # position size + circuit breakers
 python run.py ledger                          # open calls
 python run.py grade 1 --price 512.5 --verdict RIGHT --note "theme played out"
 python run.py report                          # forward-track performance
@@ -83,6 +84,7 @@ credibility.py  categorical management-credibility flag
 guidance.py     concall guided-vs-delivered store (strongest credibility input)
 redteam.py      8-point checklist + automated checks
 thesis.py       LLM thesis drafter (+ offline fallback)
+sizing.py       position sizing + circuit breakers (decision-support, no orders)
 ledger.py       SQLite forward-tracking ledger
 run.py          CLI orchestrator
 ```
@@ -92,7 +94,10 @@ run.py          CLI orchestrator
 - **M2 (done):** concall guidance history feeds the credibility flag
   (`guidance`); RSS sources beyond Google News (ET/MC/BS); entity resolution for
   buyer→supplier auto-discovery (`discover`).
-- **M3:** paper-trading loop on a live (free) broker feed with the circuit breakers.
+- **M3 (started):** risk layer first — position sizing + circuit breakers
+  (`size`); then the paper-trading loop on a live (free) broker feed. The sizing
+  guardrails land before any broker integration (a feed is premature until the
+  ledger validates the model).
 - **M4:** honest backtest harness only where point-in-time data exists.
 ```
 ```

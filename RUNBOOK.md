@@ -76,16 +76,23 @@ silently disables the entire catalyst edge.
    ```bash
    python run.py thesis HFCL --catalyst "Jio fibre capex order" --second-opinion --save
    ```
-4. **Review open calls**:
+4. **Size anything you intend to act on** — conviction-scaled position within the
+   max-position cap, with a stop, capital-at-risk, and circuit-breaker checks
+   (open positions + trades/day). Decision-support; it never places an order:
+   ```bash
+   python run.py size --thesis 1 --account 200000      # pulls symbol/entry/conviction
+   python run.py size HFCL --account 200000 --entry 512.50 --conviction HIGH
+   ```
+5. **Review open calls**:
    ```bash
    python run.py ledger
    ```
-5. **Grade as reality unfolds** (days/weeks later) — verdict ∈
+6. **Grade as reality unfolds** (days/weeks later) — verdict ∈
    RIGHT | WRONG | EARLY | NOISE:
    ```bash
    python run.py grade 1 --price 512.50 --verdict RIGHT --note "theme played out"
    ```
-6. **Forward-track performance** (hit rate, P&L, P&L by conviction, and — if you
+7. **Forward-track performance** (hit rate, P&L, P&L by conviction, and — if you
    use second-opinion — a per-model scoreboard under `by_source`):
    ```bash
    python run.py report

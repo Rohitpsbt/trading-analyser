@@ -61,6 +61,16 @@ current status / what we're working on.
 - **Thesis always completes** ([thesis.py](thesis.py)): if no LLM key/network,
   drafting falls back to a deterministic offline template (no narrative, every
   field populated) so the pipeline never breaks.
+- **Risk layer before broker** ([sizing.py](sizing.py)): M3's sizing + circuit
+  breakers are built *before* any broker feed, because a live feed is premature
+  until the ledger validates the model (deployment ladder). `plan_position`
+  scales size by conviction within `max_position_pct` (HIGH = full cap, LOW =
+  probe), derives a stop-based capital-at-risk and a 2R *reference* target (not a
+  prediction — the thesis exit conditions govern). The rupee budget is rounded to
+  paise before flooring to whole shares so float dust doesn't shave a share.
+  `circuit_breakers` reads the ledger for the open-position and trades-per-day
+  caps, treating each saved thesis as a paper position (proxy until real position
+  tracking lands). Strictly decision-support: it never places an order.
 
 ### LLM layer decisions
 - **Per-provider model resolution** (`config.model_for`): `TA_LLM_MODEL` is an

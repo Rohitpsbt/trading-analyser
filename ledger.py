@@ -76,6 +76,12 @@ class Ledger:
         return list(self.conn.execute(
             "SELECT * FROM theses WHERE status='OPEN' ORDER BY created DESC"))
 
+    def count_created_on(self, day: str) -> int:
+        """How many theses were logged on a given date (YYYY-MM-DD) — used by the
+        max-trades-per-day circuit breaker."""
+        return self.conn.execute(
+            "SELECT COUNT(*) FROM theses WHERE created=?", (day,)).fetchone()[0]
+
     def get(self, thesis_id: int) -> sqlite3.Row | None:
         return self.conn.execute(
             "SELECT * FROM theses WHERE id=?", (thesis_id,)).fetchone()

@@ -3,19 +3,20 @@
 Running status of the project. For *why* things are built the way they are, see
 [CLAUDE.md](CLAUDE.md). Last updated: **2026-06-15**.
 
-## Status: M1 + foundation/LLM hardening done; M2 in progress
+## Status: M1 + hardening + M2 done; M3 started (risk layer)
 
 The engine runs end-to-end on live data, is under git (private repo
-`Rohitpsbt/trading-analyser`), and is tested (102 pytest tests). We are in the
+`Rohitpsbt/trading-analyser`), and is tested (119 pytest tests). We are in the
 **forward paper-tracking** phase per the README's deployment ladder (paper-trade
-on live data before any real capital). M2 work has begun: extra RSS feeds,
-concall guidance history, and supplier auto-discovery are in.
+on live data before any real capital). M2 is in (extra RSS feeds, concall
+guidance history, supplier auto-discovery). M3 has begun with the **risk layer**:
+position sizing + circuit breakers — deliberately before any broker feed.
 
 ## What's built & verified
 
 - **Full M1 pipeline:** screen → scan-catalysts (supplier-linkage) → thesis →
   ledger → grade → report. Runs in `--mock` and live.
-- **Tested:** 102 pytest tests, no network required. Green as of last run.
+- **Tested:** 119 pytest tests, no network required. Green as of last run.
 - **M2 so far:**
   - **Extra RSS feeds** (ET / Moneycontrol / Business Standard) merged + deduped
     with Google News in `scan-catalysts`; `doctor` checks each feed.
@@ -25,6 +26,11 @@ concall guidance history, and supplier auto-discovery are in.
   - **Entity resolution + auto-discovery** (`linkage.py` + `run.py discover`):
     alias map resolves news text → tickers; names specific suppliers in hits and
     proposes unmapped suppliers to curate in.
+- **M3 so far:**
+  - **Risk layer** (`sizing.py` + `run.py size`): conviction-scaled position
+    sizing within `max_position_pct`, stop-based capital-at-risk, 2R reference
+    target, and circuit breakers (`max_open_positions`, `max_trades_per_day`)
+    checked against the ledger. Decision-support only — never places an order.
 - **Verified live (2026-06-14/15):**
   - yfinance: real fundamentals (e.g. RELIANCE, HFCL), 100% completeness on majors.
   - Google News supplier-linkage: real hits surfacing (NTPC power capex, NTPC
@@ -75,5 +81,8 @@ concall guidance history, and supplier auto-discovery are in.
 - [x] **M2:** more RSS sources beyond Google News; buyer→supplier auto-discovery
   (entity resolution); feed real concall guidance history into the credibility flag.
   *(Next for M2: broaden COMPANY_ALIASES coverage; per-provider model override.)*
-- [ ] **M3:** paper-trading loop on a live broker feed with circuit breakers.
+- [~] **M3:** risk layer (sizing + circuit breakers) **done** via `size`; still
+  to do — paper-trading loop on a live (free) broker feed. *(Next for M3: auto-fill
+  grade price from the provider; real position/exposure tracking beyond the
+  thesis-as-position proxy.)*
 - [ ] **M4:** honest backtest harness only where point-in-time data exists.
