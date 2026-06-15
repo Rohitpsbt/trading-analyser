@@ -13,6 +13,7 @@ ledger needs, so the pipeline always completes.
 from __future__ import annotations
 from dataclasses import dataclass, field, asdict
 from datetime import date
+import hashlib
 import json
 import re
 
@@ -86,13 +87,62 @@ RED-TEAM (answer these explicitly in your 'redteam' object): {json.dumps(rt.open
 Draft the thesis as JSON now."""
 
 
+# Set by the CLI's --fresh flag to bypass a cache *read* for one run (the live
+# answer is still written back, refreshing the entry).
+_FRESH = False
+
+
+def _cache_key(provider: str, model: str, system: str, user: str) -> str:
+    return hashlib.sha256(f"{provider}|{model}|{system}|{user}".encode()).hexdigest()
+
+
+def _cache_get(key: str) -> str | None:
+    cfg = config.LLM_CACHE
+    if not cfg.get("enabled") or _FRESH:
+        return None
+    try:
+        with open(cfg["path"]) as fh:
+            return json.load(fh).get(key)
+    except (FileNotFoundError, json.JSONDecodeError):
+        return None
+
+
+def _cache_put(key: str, value: str) -> None:
+    cfg = config.LLM_CACHE
+    if not cfg.get("enabled"):
+        return
+    try:
+        with open(cfg["path"]) as fh:
+            cache = json.load(fh)
+    except (FileNotFoundError, json.JSONDecodeError):
+        cache = {}
+    cache[key] = value
+    try:
+        with open(cfg["path"], "w") as fh:
+            json.dump(cache, fh)
+    except OSError:
+        pass
+
+
 def _call_llm(system: str, user: str, provider: str | None = None) -> str | None:
     """Call one LLM provider and return its raw text, or None on failure / no key.
     `provider` defaults to the configured one; pass it explicitly to target a
-    specific model (used by the multi-model second opinion)."""
+    specific model (used by the multi-model second opinion).
+
+    Successful responses are cached on disk keyed by (provider, model, prompt) so
+    re-drafting the same call doesn't re-hit the API — important for staying under
+    free-tier rate limits (notably Gemini). The prompt embeds the live price and
+    fundamentals, so the key changes naturally when the inputs change."""
     cfg = config.LLM
     provider = (provider or cfg.get("provider") or "none").lower()
     model = config.model_for(provider)  # explicit override or per-provider default
+
+    ck = _cache_key(provider, model, system, user)
+    cached = _cache_get(ck)
+    if cached is not None:
+        return cached
+
+    resp: str | None = None
     try:
         if provider == "groq" and cfg.get("groq_api_key"):
             from groq import Groq
@@ -102,26 +152,67 @@ def _call_llm(system: str, user: str, provider: str | None = None) -> str | None
                 messages=[{"role": "system", "content": system},
                           {"role": "user", "content": user}],
                 temperature=0.2, response_format={"type": "json_object"})
-            return r.choices[0].message.content
-        if provider == "gemini" and cfg.get("gemini_api_key"):
+            resp = r.choices[0].message.content
+        elif provider == "gemini" and cfg.get("gemini_api_key"):
             import google.generativeai as genai
             genai.configure(api_key=cfg["gemini_api_key"])
             gmodel = genai.GenerativeModel(
                 model, system_instruction=system,
                 generation_config={"response_mime_type": "application/json",
                                    "temperature": 0.2})
-            r = gmodel.generate_content(user)
-            return r.text
-        if provider == "anthropic" and cfg.get("anthropic_api_key"):
+            resp = gmodel.generate_content(user).text
+        elif provider == "anthropic" and cfg.get("anthropic_api_key"):
             import anthropic
             client = anthropic.Anthropic(api_key=cfg["anthropic_api_key"])
             r = client.messages.create(
                 model=model, max_tokens=1500, system=system,
                 messages=[{"role": "user", "content": user}])
-            return r.content[0].text
+            resp = r.content[0].text
     except Exception as e:
         print(f"[thesis] {provider} call failed ({e}); using offline template.")
-    return None
+        resp = None
+
+    if resp:
+        _cache_put(ck, resp)
+    return resp
+
+
+# --- LLM output hardening: small models return loose shapes; coerce them. ------
+_ACTIONS = {"WATCH", "BUY_CANDIDATE", "TRIM", "AVOID"}
+_ACTION_SYNONYMS = {"WAIT": "WATCH", "HOLD": "WATCH", "BUY": "BUY_CANDIDATE",
+                    "ACCUMULATE": "BUY_CANDIDATE", "ADD": "BUY_CANDIDATE",
+                    "SELL": "TRIM", "REDUCE": "TRIM", "EXIT": "AVOID"}
+_CONVICTIONS = {"LOW", "MEDIUM", "HIGH"}
+
+
+def _clean_text(v) -> str:
+    """Flatten whatever the model returned for a text field into readable prose.
+    Some models hand back dicts/lists (e.g. exit_conditions as {target, stop, ...})
+    where a sentence was asked for."""
+    if v is None:
+        return ""
+    if isinstance(v, str):
+        return v
+    if isinstance(v, dict):
+        return "; ".join(f"{k}: {_clean_text(val)}" for k, val in v.items())
+    if isinstance(v, (list, tuple)):
+        return "; ".join(_clean_text(x) for x in v)
+    return str(v)
+
+
+def _norm_action(v) -> str:
+    s = str(v).upper().strip().replace(" ", "_")
+    return s if s in _ACTIONS else _ACTION_SYNONYMS.get(s, "WATCH")
+
+
+def _norm_conviction(v) -> str:
+    s = str(v).upper().strip()
+    if s in _CONVICTIONS:
+        return s
+    for c in _CONVICTIONS:           # tolerate "MED", "HI", "low conviction", ...
+        if s.startswith(c[:3]):
+            return c
+    return "LOW"
 
 
 def _extract_json(raw: str) -> str:
@@ -189,15 +280,15 @@ def _draft_one(screen: ScreenResult, cred: CredibilityResult, rt: RedTeamReport,
 
     return Thesis(
         symbol=screen.symbol, name=screen.name, as_of=date.today().isoformat(),
-        catalyst=catalyst, conviction=str(data.get("conviction", "LOW")).upper(),
-        suggested_action=str(data.get("suggested_action", "WATCH")).upper(),
+        catalyst=catalyst, conviction=_norm_conviction(data.get("conviction", "LOW")),
+        suggested_action=_norm_action(data.get("suggested_action", "WATCH")),
         reference_price=ref_price,
-        fundamental_summary=data.get("fundamental_summary", ""),
+        fundamental_summary=_clean_text(data.get("fundamental_summary", "")),
         credibility_flag=cred.flag.value,
-        bull_case=data.get("bull_case", ""),
-        bear_case=data.get("bear_case", ""),
-        exit_conditions=data.get("exit_conditions", ""),
-        redteam={str(k): str(v) for k, v in rt_obj.items()},
+        bull_case=_clean_text(data.get("bull_case", "")),
+        bear_case=_clean_text(data.get("bear_case", "")),
+        exit_conditions=_clean_text(data.get("exit_conditions", "")),
+        redteam={str(k): _clean_text(v) for k, v in rt_obj.items()},
         narrated=narrated,
         source=source,
     )

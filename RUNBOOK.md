@@ -80,6 +80,25 @@ silently disables the entire catalyst edge.
 Add `--mock` to `screen` / `scan-catalysts` / `thesis` to exercise the pipeline
 with deterministic synthetic data and no network.
 
+## LLM cost & rate limits (especially Gemini)
+
+LLM responses are **cached on disk** (`.llm_cache.json`, git-ignored), keyed by
+provider + model + the full prompt. Re-drafting the same call returns the cached
+answer instead of re-hitting the API — the main defence against free-tier rate
+limits. Because the prompt embeds the live price and fundamentals, the cache
+invalidates itself naturally when those change. Notes:
+
+- **Gemini is opt-in** — only `--second-opinion` ever calls it. Day-to-day single
+  theses use Groq alone, so you rarely touch Gemini's quota.
+- A `429 quota exceeded` from Gemini means the **free-tier limit**, not a bad key.
+  Space out `--second-opinion` runs, or raise quota/enable billing in
+  [Google AI Studio](https://aistudio.google.com). Gemini's model is set in
+  `config.DEFAULT_MODELS` (override per provider with `TA_LLM_MODEL`).
+- `--fresh` forces a live re-draft (ignores the cached answer); `TA_LLM_CACHE=0`
+  disables caching entirely.
+- Default Groq model is now `llama-3.3-70b-versatile` (tighter theses); set
+  `TA_LLM_MODEL=llama-3.1-8b-instant` in `.env` if you prefer speed.
+
 ## Where the data lives
 
 The ledger is a local SQLite file at `trading_analyser.db` (override with

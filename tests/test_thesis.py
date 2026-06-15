@@ -4,9 +4,11 @@ import json
 from screening import ScreenResult
 from credibility import CredibilityResult, Credibility
 from redteam import RedTeamReport
+import config
 import thesis
 from thesis import (draft_thesis, draft_second_opinion, _offline_thesis,
-                    _extract_json, _short_source)
+                    _extract_json, _short_source, _clean_text, _norm_action,
+                    _norm_conviction, _call_llm, _cache_key)
 
 
 def _screen(passed=True, score=100.0):
@@ -123,3 +125,62 @@ def test_second_opinion_narrated_count(monkeypatch):
     monkeypatch.setattr(thesis, "_call_llm", fake)
     so = draft_second_opinion(_screen(), _cred(), _rt())
     assert so.narrated_count == 1
+
+
+# --- output hardening -----------------------------------------------------
+
+def test_clean_text_flattens_dicts_and_lists():
+    assert _clean_text({"target": "1850", "stop": "1500"}) == "target: 1850; stop: 1500"
+    assert _clean_text(["a", "b"]) == "a; b"
+    assert _clean_text(None) == ""
+    assert _clean_text("plain") == "plain"
+
+
+def test_norm_action_constrains_to_allowed_set():
+    assert _norm_action("WAIT") == "WATCH"        # the real misbehaviour we saw
+    assert _norm_action("buy") == "BUY_CANDIDATE"
+    assert _norm_action("BUY_CANDIDATE") == "BUY_CANDIDATE"
+    assert _norm_action("nonsense") == "WATCH"    # safe default
+
+
+def test_norm_conviction_constrains_to_allowed_set():
+    assert _norm_conviction("med") == "MEDIUM"
+    assert _norm_conviction("HIGH") == "HIGH"
+    assert _norm_conviction("whatever") == "LOW"
+
+
+def test_draft_coerces_dict_exit_conditions(monkeypatch):
+    payload = json.dumps({
+        "conviction": "MEDIUM", "suggested_action": "WAIT",
+        "fundamental_summary": {"roe": 19.3, "rev": 17.9},
+        "bull_case": "b", "bear_case": "be",
+        "exit_conditions": {"target": "1850", "stop": "1500"},
+        "redteam": {"ruin": {"note": "sized ok"}}})
+    monkeypatch.setattr(thesis, "_call_llm", lambda s, u, provider=None: payload)
+    t = draft_thesis(_screen(), _cred(), _rt(), ref_price=100)
+    assert t.suggested_action == "WATCH"                 # normalised
+    assert "target: 1850" in t.exit_conditions          # dict flattened to text
+    assert "roe: 19.3" in t.fundamental_summary
+    assert isinstance(t.redteam["ruin"], str)
+
+
+# --- response caching -----------------------------------------------------
+
+def test_llm_cache_round_trip_short_circuits_provider(monkeypatch, tmp_path):
+    # With a populated cache, _call_llm returns the cached value WITHOUT needing
+    # an API key or making a call (the whole point: fewer requests).
+    monkeypatch.setitem(config.LLM_CACHE, "enabled", True)
+    monkeypatch.setitem(config.LLM_CACHE, "path", str(tmp_path / "cache.json"))
+    monkeypatch.setattr(thesis, "_FRESH", False)
+    key = _cache_key("groq", config.model_for("groq"), "SYS", "USR")
+    thesis._cache_put(key, '{"cached": true}')
+    assert _call_llm("SYS", "USR", provider="groq") == '{"cached": true}'
+
+
+def test_llm_cache_disabled_does_not_read(monkeypatch, tmp_path):
+    monkeypatch.setitem(config.LLM_CACHE, "enabled", False)
+    monkeypatch.setitem(config.LLM_CACHE, "path", str(tmp_path / "cache.json"))
+    key = _cache_key("groq", config.model_for("groq"), "SYS", "USR")
+    thesis._cache_put(key, "should-not-be-written")
+    # Nothing cached (writes are no-ops when disabled), and no key -> None.
+    assert _call_llm("SYS", "USR", provider="groq") is None

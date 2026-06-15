@@ -11,6 +11,9 @@ env/
 # Local data — your real ledger of calls stays out of version control
 *.db
 
+# Cached LLM responses (keeps you under free-tier rate limits)
+.llm_cache.json
+
 # macOS
 .DS_Store
 

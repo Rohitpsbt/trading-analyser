@@ -130,10 +130,10 @@ COSTS = {
 # TA_LLM_PROVIDER=anthropic/gemini without an explicit model sent an invalid
 # model id and the call failed.) Override any of these with TA_LLM_MODEL.
 DEFAULT_MODELS = {
-    "groq": "llama-3.1-8b-instant",   # free tier; Groq rotates models — bump to
-                                      # llama-3.3-70b-versatile for a stronger draft
-    "anthropic": "claude-haiku-4-5",  # cheap & capable; claude-sonnet-4-6 for deeper analysis
-    "gemini": "gemini-2.0-flash",     # Gemini free tier
+    "groq": "llama-3.3-70b-versatile",  # stronger draft / tighter JSON than 8b-instant;
+                                        # set TA_LLM_MODEL=llama-3.1-8b-instant for speed
+    "anthropic": "claude-haiku-4-5",    # cheap & capable; claude-sonnet-4-6 for deeper analysis
+    "gemini": "gemini-2.0-flash",       # Gemini free tier
 }
 
 LLM = {
@@ -149,6 +149,18 @@ def model_for(provider: str) -> str:
     """Resolve the model to use: explicit TA_LLM_MODEL override, else the
     default for this provider. Avoids sending a Groq model id to Anthropic/Gemini."""
     return LLM.get("model") or DEFAULT_MODELS.get(provider, "")
+
+
+# Cache LLM responses on disk keyed by (provider, model, prompt) so re-drafting
+# the same call doesn't re-hit the API — the main lever for staying under free-tier
+# rate limits (notably Gemini). The prompt embeds live price/fundamentals, so the
+# key changes when the inputs change. Disable with TA_LLM_CACHE=0.
+LLM_CACHE = {
+    "enabled": os.getenv("TA_LLM_CACHE", "1").lower() not in ("0", "false", "no", ""),
+    "path": os.getenv("TA_LLM_CACHE_PATH",
+                      os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                                   ".llm_cache.json")),
+}
 
 DB_PATH = os.getenv("TA_DB_PATH", "trading_analyser.db")
 

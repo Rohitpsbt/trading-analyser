@@ -86,6 +86,9 @@ def _print_thesis(t, header="THESIS"):
 
 
 def cmd_thesis(args):
+    if getattr(args, "fresh", False):
+        import thesis
+        thesis._FRESH = True  # bypass the cache read; live answer is re-cached
     provider = get_provider(use_mock=args.mock)
     f = provider.get_fundamentals(args.symbol)
     screen = screen_one(f)
@@ -245,7 +248,9 @@ def build_parser():
     s.add_argument("--second-opinion", "-2", dest="second_opinion",
                    action="store_true",
                    help="draft from Groq AND Gemini, show both, flag disagreement")
-    s.set_defaults(func=cmd_thesis, second_opinion=False)
+    s.add_argument("--fresh", action="store_true",
+                   help="ignore the cached LLM response and re-draft live")
+    s.set_defaults(func=cmd_thesis, second_opinion=False, fresh=False)
 
     s = sub.add_parser("ledger"); s.set_defaults(func=cmd_ledger)
 
