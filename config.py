@@ -84,6 +84,41 @@ LINKAGE_MAP = {
 }
 
 # ---------------------------------------------------------------------------
+# Company aliases — entity resolution for buyer→supplier auto-discovery
+# ---------------------------------------------------------------------------
+# Maps a universe ticker to the name variants that appear in news text, so a
+# free-text headline ("Sterlite Technologies bags fibre order") resolves to the
+# ticker (STLTECH). This powers (a) naming the SPECIFIC supplier in a linkage hit
+# instead of the whole theme list, and (b) the `discover` command, which proposes
+# universe names that show up in theme news but aren't yet in LINKAGE_MAP.
+#
+# The ticker itself (lowercased) is always matched too; add the human names here.
+# Curate this — entity resolution is only as good as the alias coverage.
+COMPANY_ALIASES = {
+    "RELIANCE": ["reliance industries", "reliance jio", "jio", "ril"],
+    "BHARTIARTL": ["bharti airtel", "airtel", "bharti"],
+    "HFCL": ["hfcl", "himachal futuristic"],
+    "STLTECH": ["sterlite technologies", "sterlite tech", "stl"],
+    "BIRLACABLE": ["birla cable", "birla cables"],
+    "PARAMOUNT": ["paramount communications", "paramount cables"],
+    "CGPOWER": ["cg power", "crompton greaves power"],
+    "ABB": ["abb india"],
+    "SIEMENS": ["siemens"],
+    "POLYCAB": ["polycab"],
+    "KEI": ["kei industries"],
+    "KEC": ["kec international"],
+    "KALPATPOWR": ["kalpataru projects", "kalpataru power"],
+    "BHEL": ["bhel", "bharat heavy electricals"],
+    "DIXON": ["dixon technologies"],
+    "POWERGRID": ["power grid", "powergrid"],
+    "NTPC": ["ntpc"],
+    "ADANIENT": ["adani enterprises"],
+    "ADANIPORTS": ["adani ports"],
+    "TATASTEEL": ["tata steel"],
+    "LT": ["larsen & toubro", "larsen and toubro", "l&t"],
+}
+
+# ---------------------------------------------------------------------------
 # Fundamental screen thresholds (secondary screen — ride themes via OK businesses)
 # ---------------------------------------------------------------------------
 SCREEN = {
@@ -164,6 +199,13 @@ LLM_CACHE = {
 }
 
 DB_PATH = os.getenv("TA_DB_PATH", "trading_analyser.db")
+
+# Concall guidance history (guided-vs-delivered), the strongest credibility input.
+# A JSON file keyed by ticker; you maintain it via `python run.py guidance ...`.
+# Not git-ignored — it's curated research worth versioning (unlike the ledger DB).
+GUIDANCE_PATH = os.getenv("TA_GUIDANCE_PATH",
+                          os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                                       "guidance.json"))
 
 # ---------------------------------------------------------------------------
 # News feeds — supplementary to Google News RSS search

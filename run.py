@@ -26,6 +26,8 @@ from credibility import assess
 from redteam import run_automated, breakeven_move_pct
 from thesis import draft_thesis, draft_second_opinion
 from ledger import Ledger
+from guidance import load_guidance, add_guidance, all_guidance
+from linkage import discover_suppliers
 
 
 def cmd_screen(args):
@@ -62,7 +64,75 @@ def cmd_scan(args):
         return
     for h in hits:
         print(f"[{h.theme}] {h.buyer}: \"{h.trigger_headline}\"")
-        print(f"        -> watch suppliers: {h.suppliers}")
+        if h.mentioned_suppliers:
+            print(f"        -> NAMED in headline: {h.mentioned_suppliers} "
+                  f"(specific signal)")
+        others = [s for s in h.suppliers if s not in h.mentioned_suppliers]
+        if others:
+            print(f"        -> also watch suppliers: {others}")
+
+
+def cmd_discover(args):
+    """Auto-discovery: search supplier-side news per theme and propose universe
+    tickers that appear but aren't yet mapped in LINKAGE_MAP."""
+    print(f"\nSupplier auto-discovery ({'MOCK' if args.mock else 'LIVE'} news)\n"
+          + "-" * 64)
+    if args.mock:
+        print("Discovery needs live news (entity resolution over real headlines); "
+              "run without --mock.")
+        return
+    found, errors = discover_suppliers()
+    if not found:
+        print("No unmapped universe names surfaced in theme news right now.")
+        if errors:
+            print(f"\n({len(errors)} searches unreachable — expected in a sandbox. "
+                  f"First few:)")
+            for e in errors[:4]:
+                print(f"   - {e}")
+        return
+    for theme, items in found.items():
+        print(f"\n[{theme}] candidate suppliers not yet in LINKAGE_MAP:")
+        for d in items:
+            print(f"   + {d['ticker']:<11} named in: \"{d['headline'][:60]}\"")
+    print("\nReview these, then curate the real ones into config.LINKAGE_MAP "
+          "(and add aliases to config.COMPANY_ALIASES).")
+
+
+def cmd_guidance(args):
+    """View or add concall guided-vs-delivered history (credibility input)."""
+    # Add mode: --year supplied.
+    if args.year is not None:
+        if args.met == args.missed:  # both set or neither set
+            print("Specify exactly one of --met / --missed for the outcome.")
+            return
+        hist = add_guidance(args.symbol, args.year, args.guided or "",
+                            args.delivered or "", met=args.met)
+        print(f"Logged {args.symbol.upper()} {args.year}: "
+              f"{'MET' if args.met else 'MISSED'}. Now {len(hist)} yr(s) on file.")
+        return
+
+    # View mode.
+    if args.symbol:
+        hist = load_guidance(args.symbol)
+        print(f"\nGuidance history — {args.symbol.upper()} ({len(hist)} yr(s))\n"
+              + "-" * 64)
+        if not hist:
+            print("None on file. Add with: guidance SYM --year 2024 "
+                  "--guided \"...\" --delivered \"...\" --met|--missed")
+            return
+        for e in hist:
+            mark = "MET   " if e.get("met") else "MISSED"
+            print(f"   {e.get('year')}  [{mark}]  guided: {e.get('guided')!r}  "
+                  f"delivered: {e.get('delivered')!r}")
+    else:
+        store = all_guidance()
+        print(f"\nAll guidance on file ({len(store)} ticker(s))\n" + "-" * 64)
+        if not store:
+            print("Empty. See guidance.example.json for the format.")
+            return
+        for sym, hist in sorted(store.items()):
+            met = sum(1 for e in hist if e.get("met"))
+            print(f"   {sym:<11} {len(hist)} yr(s), met {met}/{len(hist)}")
 
 
 def _print_thesis(t, header="THESIS"):
@@ -92,7 +162,12 @@ def cmd_thesis(args):
     provider = get_provider(use_mock=args.mock)
     f = provider.get_fundamentals(args.symbol)
     screen = screen_one(f)
-    cred = assess(f)
+    gh = load_guidance(args.symbol)
+    cred = assess(f, guidance_history=gh)
+    if gh:
+        met = sum(1 for g in gh if g.get("met"))
+        print(f"(credibility uses {len(gh)} yr(s) of guidance history — "
+              f"met {met}/{len(gh)})")
     recent = provider.get_return_pct(args.symbol,
                                      config.RISK["already_run_lookback_days"])
     rt = run_automated(args.symbol, recent)
@@ -250,6 +325,21 @@ def build_parser():
     s.add_argument("--top", type=int, default=10); s.set_defaults(func=cmd_screen)
 
     s = sub.add_parser("scan-catalysts"); add_mock(s); s.set_defaults(func=cmd_scan)
+
+    s = sub.add_parser("discover",
+                       help="auto-discover unmapped suppliers in theme news")
+    add_mock(s); s.set_defaults(func=cmd_discover)
+
+    s = sub.add_parser("guidance",
+                       help="view/add concall guided-vs-delivered history")
+    s.add_argument("symbol", nargs="?", default="",
+                   help="ticker to view/add (omit to list all)")
+    s.add_argument("--year", type=int, help="year of the guidance (enables add mode)")
+    s.add_argument("--guided", help="what management guided, e.g. \"20% rev growth\"")
+    s.add_argument("--delivered", help="what was actually delivered, e.g. \"12%\"")
+    s.add_argument("--met", action="store_true", help="they met/beat the guidance")
+    s.add_argument("--missed", action="store_true", help="they missed the guidance")
+    s.set_defaults(func=cmd_guidance)
 
     s = sub.add_parser("thesis"); add_mock(s)
     s.add_argument("symbol")

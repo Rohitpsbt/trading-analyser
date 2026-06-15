@@ -1,0 +1,9 @@
+{
+  "HFCL": [
+    {"year": 2024, "guided": "20% revenue growth on order book", "delivered": "12% revenue growth", "met": false},
+    {"year": 2023, "guided": "EBITDA margin ~15%", "delivered": "14.8% EBITDA margin", "met": true}
+  ],
+  "STLTECH": [
+    {"year": 2024, "guided": "net debt reduction of 500cr", "delivered": "350cr reduction", "met": false}
+  ]
+}

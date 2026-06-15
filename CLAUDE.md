@@ -35,7 +35,22 @@ current status / what we're working on.
 - **Categorical credibility flag** ([credibility.py](credibility.py)):
   CREDIBLE / NEUTRAL / CAUTION / INSUFFICIENT_DATA with concrete reasons — a
   deliberate refusal to manufacture a false-precision percentage. Guidance-vs-
-  delivery history is the strongest input when supplied.
+  delivery history is the strongest input when supplied (weighted ±2 vs ±1 for
+  the hard financial tells).
+- **Concall guidance store** ([guidance.py](guidance.py)): the free stack has no
+  structured concall API, so guided-vs-delivered history is hand-curated into a
+  JSON file (`guidance.json`, keyed by ticker) via `run.py guidance`, and loaded
+  into `assess()` per name. The hook already existed in `assess`; this wires it
+  in (before M2 it was dead — `assess(f)` was called with no history). The file
+  is curated research, so it's **tracked**, not git-ignored (unlike the ledger DB).
+- **Entity resolution + auto-discovery** ([linkage.py](linkage.py)): an alias map
+  (`config.COMPANY_ALIASES`, ticker→name variants) resolves free-text news to
+  universe tickers, dependency-free (word-boundary matching, no NLP/ML). Two uses:
+  (a) `LinkageHit.mentioned_suppliers` names the SPECIFIC mapped supplier when a
+  headline names one (stronger than surfacing the whole theme list); (b) the
+  `discover` command searches supplier-side news and proposes universe names that
+  appear but aren't yet in LINKAGE_MAP — auto-discovery to *review and curate in*,
+  never auto-trust. Precision is bounded by alias coverage.
 - **Red-team as a system** ([redteam.py](redteam.py)): 8-point checklist; the
   checkable items (already-priced-in, survives-friction, ruin) are computed,
   the rest are posed to the LLM/human and stored for audit.

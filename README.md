@@ -44,6 +44,8 @@ operating loop.
 ```bash
 python run.py screen --top 10                 # rank universe on fundamentals
 python run.py scan-catalysts                  # supplier-linkage news scan
+python run.py discover                         # auto-discover unmapped suppliers in theme news
+python run.py guidance HFCL --year 2024 --guided "20% rev" --delivered "12%" --missed
 python run.py thesis HFCL --catalyst "Jio fibre capex" --save
 python run.py ledger                          # open calls
 python run.py grade 1 --price 512.5 --verdict RIGHT --note "theme played out"
@@ -72,11 +74,13 @@ and stored for audit.
 
 ## Module map
 ```
-config.py       universe, supplier-linkage map, thresholds, risk, costs, LLM env
+config.py       universe, supplier-linkage map, company aliases, thresholds, risk, costs, LLM env
 providers.py    MarketDataProvider ABC + YFinanceProvider + MockProvider
 screening.py    fundamental screen (transparent per-metric scoring)
-catalysts.py    Google News RSS monitor + supplier-linkage detection
+catalysts.py    Google News + ET/MC/BS RSS monitor + supplier-linkage detection
+linkage.py      entity resolution (news text -> tickers) + supplier auto-discovery
 credibility.py  categorical management-credibility flag
+guidance.py     concall guided-vs-delivered store (strongest credibility input)
 redteam.py      8-point checklist + automated checks
 thesis.py       LLM thesis drafter (+ offline fallback)
 ledger.py       SQLite forward-tracking ledger
@@ -85,8 +89,9 @@ run.py          CLI orchestrator
 
 ## Roadmap
 - **M1 (this):** screen + linkage + thesis + ledger.
-- **M2:** feed real concall guidance history into the credibility flag; add
-  RSS sources beyond Google News; entity-resolution for buyer→supplier auto-discovery.
+- **M2 (done):** concall guidance history feeds the credibility flag
+  (`guidance`); RSS sources beyond Google News (ET/MC/BS); entity resolution for
+  buyer→supplier auto-discovery (`discover`).
 - **M3:** paper-trading loop on a live (free) broker feed with the circuit breakers.
 - **M4:** honest backtest harness only where point-in-time data exists.
 ```

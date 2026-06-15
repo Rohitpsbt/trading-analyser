@@ -34,20 +34,35 @@ python3 run.py doctor
 ```
 
 Confirms: which LLM provider/model is active and whether its key is set; that
-**yfinance** reaches Yahoo (fetches RELIANCE); and that the **Google News** feed
-works. If anything says `FAILED`, fix it before trusting live output — a missing
+**yfinance** reaches Yahoo (fetches RELIANCE); and that the news feeds work
+(**Google News** plus each supplementary RSS feed in `config.NEWS_FEEDS`,
+checked individually). If anything says `FAILED`, fix it before trusting live
+output — a missing
 LLM key silently drops you to the offline template, and a broken news feed
 silently disables the entire catalyst edge.
 
 ## The daily loop (paper-tracking real calls)
 
-1. **Scan the demand side** — surface suppliers behind live buyer catalysts:
+1. **Scan the demand side** — surface suppliers behind live buyer catalysts.
+   A mapped supplier named directly in a headline is flagged as a specific signal:
    ```bash
    python run.py scan-catalysts
+   ```
+   Periodically **auto-discover** universe names appearing in theme news that
+   aren't mapped yet, then curate the real ones into `config.LINKAGE_MAP`:
+   ```bash
+   python run.py discover
    ```
 2. **Sanity-screen the universe** (optional, fundamentals view):
    ```bash
    python run.py screen --top 10
+   ```
+   Keep the **credibility** flag honest by logging concall guidance over time —
+   guided-vs-delivered is the strongest credibility input, loaded into the thesis
+   automatically once on file (`guidance.json`; see `guidance.example.json`):
+   ```bash
+   python run.py guidance HFCL --year 2024 --guided "20% rev growth" --delivered "12%" --missed
+   python run.py guidance HFCL        # view one ticker; `guidance` alone lists all
    ```
 3. **Draft + log a dated thesis** for each candidate. `--save` writes it to the
    ledger for later grading:
@@ -107,7 +122,7 @@ Back it up yourself; it *is* your track record.
 ## Tests
 
 ```bash
-python -m pytest        # 39 tests, no network required
+python -m pytest        # 102 tests, no network required
 ```
 
 ## Deployment ladder (don't skip steps — from the README)

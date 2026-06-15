@@ -55,6 +55,9 @@ class LinkageHit:
     trigger_headline: str
     suppliers: list[str]
     published: str
+    # Entity resolution: mapped suppliers actually NAMED in the trigger headline
+    # (a more specific, higher-conviction signal than the whole theme list).
+    mentioned_suppliers: list[str] = field(default_factory=list)
     # Red-team field 4 ('already priced in'): filled in by the runner using price.
     supplier_already_run: dict[str, bool] = field(default_factory=dict)
 
@@ -191,7 +194,8 @@ class SupplierLinkage:
                 )
                 candidates.append((buyer_attr, it))
 
-            # 3. Demand-signal filter → hits
+            # 3. Demand-signal filter → hits (with entity resolution per headline)
+            from linkage import suppliers_in_text
             for buyer_attr, it in candidates:
                 if self._is_demand_signal(it.title, keywords):
                     hits.append(LinkageHit(
@@ -199,6 +203,7 @@ class SupplierLinkage:
                         buyer=buyer_attr,
                         trigger_headline=it.title,
                         suppliers=theme.get("suppliers", []),
+                        mentioned_suppliers=suppliers_in_text(it.title, theme),
                         published=it.published or datetime.now(timezone.utc).isoformat(),
                     ))
 

@@ -3,17 +3,28 @@
 Running status of the project. For *why* things are built the way they are, see
 [CLAUDE.md](CLAUDE.md). Last updated: **2026-06-15**.
 
-## Status: M1 complete + foundation/LLM hardening done
+## Status: M1 + foundation/LLM hardening done; M2 in progress
 
-The engine runs end-to-end on live data, is under git, and is tested. We are in
-the **forward paper-tracking** phase per the README's deployment ladder
-(paper-trade on live data before any real capital).
+The engine runs end-to-end on live data, is under git (private repo
+`Rohitpsbt/trading-analyser`), and is tested (102 pytest tests). We are in the
+**forward paper-tracking** phase per the README's deployment ladder (paper-trade
+on live data before any real capital). M2 work has begun: extra RSS feeds,
+concall guidance history, and supplier auto-discovery are in.
 
 ## What's built & verified
 
 - **Full M1 pipeline:** screen → scan-catalysts (supplier-linkage) → thesis →
   ledger → grade → report. Runs in `--mock` and live.
-- **Tested:** 56 pytest tests, no network required. Green as of last run.
+- **Tested:** 102 pytest tests, no network required. Green as of last run.
+- **M2 so far:**
+  - **Extra RSS feeds** (ET / Moneycontrol / Business Standard) merged + deduped
+    with Google News in `scan-catalysts`; `doctor` checks each feed.
+  - **Concall guidance history** (`guidance.py` + `run.py guidance`) wired into
+    the credibility flag — closes the gap where `assess()` had a guidance hook
+    that nothing fed.
+  - **Entity resolution + auto-discovery** (`linkage.py` + `run.py discover`):
+    alias map resolves news text → tickers; names specific suppliers in hits and
+    proposes unmapped suppliers to curate in.
 - **Verified live (2026-06-14/15):**
   - yfinance: real fundamentals (e.g. RELIANCE, HFCL), 100% completeness on majors.
   - Google News supplier-linkage: real hits surfacing (NTPC power capex, NTPC
@@ -61,7 +72,8 @@ the **forward paper-tracking** phase per the README's deployment ladder
   has higher free limits if needed.
 
 **Roadmap (from README)**
-- [ ] **M2:** more RSS sources beyond Google News; buyer→supplier auto-discovery
+- [x] **M2:** more RSS sources beyond Google News; buyer→supplier auto-discovery
   (entity resolution); feed real concall guidance history into the credibility flag.
+  *(Next for M2: broaden COMPANY_ALIASES coverage; per-provider model override.)*
 - [ ] **M3:** paper-trading loop on a live broker feed with circuit breakers.
 - [ ] **M4:** honest backtest harness only where point-in-time data exists.
