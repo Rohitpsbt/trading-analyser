@@ -133,7 +133,8 @@ DEFAULT_MODELS = {
     "groq": "llama-3.3-70b-versatile",  # stronger draft / tighter JSON than 8b-instant;
                                         # set TA_LLM_MODEL=llama-3.1-8b-instant for speed
     "anthropic": "claude-haiku-4-5",    # cheap & capable; claude-sonnet-4-6 for deeper analysis
-    "gemini": "gemini-2.0-flash",       # Gemini free tier
+    "gemini": "gemini-2.5-flash",       # free-tier enabled (2.0-flash has limit:0 on new keys);
+                                        # gemini-2.5-flash-lite for higher free limits
 }
 
 LLM = {

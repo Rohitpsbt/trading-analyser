@@ -122,7 +122,7 @@ def _thesis_second_opinion(args, screen, cred, rt, f):
     if so.narrated_count < 2:
         print("! Fewer than two live models answered — a real second opinion needs")
         print("  BOTH keys (GROQ_API_KEY + GEMINI_API_KEY) and the gemini SDK")
-        print("  (pip install google-generativeai). Models without a key fell back")
+        print("  (pip install google-genai). Models without a key fell back")
         print("  to the identical offline template.")
     if so.agree:
         print("MODELS AGREE on conviction & suggested action — corroborating signal.")

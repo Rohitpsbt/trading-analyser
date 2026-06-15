@@ -154,13 +154,17 @@ def _call_llm(system: str, user: str, provider: str | None = None) -> str | None
                 temperature=0.2, response_format={"type": "json_object"})
             resp = r.choices[0].message.content
         elif provider == "gemini" and cfg.get("gemini_api_key"):
-            import google.generativeai as genai
-            genai.configure(api_key=cfg["gemini_api_key"])
-            gmodel = genai.GenerativeModel(
-                model, system_instruction=system,
-                generation_config={"response_mime_type": "application/json",
-                                   "temperature": 0.2})
-            resp = gmodel.generate_content(user).text
+            # New google-genai SDK (the old google-generativeai is EOL).
+            from google import genai
+            from google.genai import types
+            client = genai.Client(api_key=cfg["gemini_api_key"])
+            r = client.models.generate_content(
+                model=model, contents=user,
+                config=types.GenerateContentConfig(
+                    system_instruction=system,
+                    response_mime_type="application/json",
+                    temperature=0.2))
+            resp = r.text
         elif provider == "anthropic" and cfg.get("anthropic_api_key"):
             import anthropic
             client = anthropic.Anthropic(api_key=cfg["anthropic_api_key"])

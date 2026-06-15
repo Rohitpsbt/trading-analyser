@@ -24,7 +24,7 @@ cp .env.example .env                              # then edit .env:
 
 # For the second-opinion mode (Groq + Gemini side by side) install BOTH and set
 # BOTH keys:
-pip install groq google-generativeai
+pip install groq google-genai
 export GROQ_API_KEY=...  GEMINI_API_KEY=...        # gemini key from aistudio.google.com
 ```
 

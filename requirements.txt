@@ -6,10 +6,11 @@ certifi>=2024.0         # CA bundle for the news feed (fixes macOS SSL cert erro
 
 # LLM thesis drafter — install ONLY the one you'll use (all have free tiers):
 # groq>=0.11                     # free tier; default. Set GROQ_API_KEY
-# google-generativeai>=0.7       # Gemini free tier. Set GEMINI_API_KEY
+# google-genai>=1.0              # Gemini free tier (current SDK). Set GEMINI_API_KEY
 # anthropic>=0.40                # Set ANTHROPIC_API_KEY
 # For `thesis --second-opinion` (Groq + Gemini side by side) install BOTH
-# groq and google-generativeai, and set BOTH GROQ_API_KEY and GEMINI_API_KEY.
+# groq and google-genai, and set BOTH GROQ_API_KEY and GEMINI_API_KEY.
+# (The older google-generativeai package is end-of-life — use google-genai.)
 
 # Later milestones (backtesting where data is honest):
 # vectorbt   /   backtrader   /   backtesting.py
