@@ -68,9 +68,17 @@ current status / what we're working on.
   probe), derives a stop-based capital-at-risk and a 2R *reference* target (not a
   prediction — the thesis exit conditions govern). The rupee budget is rounded to
   paise before flooring to whole shares so float dust doesn't shave a share.
-  `circuit_breakers` reads the ledger for the open-position and trades-per-day
-  caps, treating each saved thesis as a paper position (proxy until real position
-  tracking lands). Strictly decision-support: it never places an order.
+  Strictly decision-support: it never places an order.
+- **Real position/exposure tracking** ([ledger.py](ledger.py) `positions` table):
+  a position is what you actually took (shares, entry, stop, linked thesis_id),
+  distinct from a thesis *grade* — `grade <thesis_id>` judges whether the analysis
+  was RIGHT/WRONG (validates the model); `close <position_id>` realizes the trade
+  P&L (tracks capital). `exposure()` aggregates rupees invested + portfolio 'heat'
+  (capital-at-risk; a position with no stop counts its full value as at-risk).
+  `circuit_breakers` now reads real positions, not a thesis-count proxy: it checks
+  `max_open_positions`, `max_trades_per_day`, and `max_portfolio_heat_pct`, and
+  includes the *prospective* plan so you see a breach before opening. A tripped
+  breaker **blocks** `size --open` unless `--force` is passed (you own the risk).
 
 ### LLM layer decisions
 - **Per-provider model resolution** (`config.model_for`): `TA_LLM_MODEL` is an

@@ -41,6 +41,22 @@ CREATE TABLE IF NOT EXISTS grades (
     note TEXT,
     FOREIGN KEY (thesis_id) REFERENCES theses(id)
 );
+CREATE TABLE IF NOT EXISTS positions (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    opened TEXT NOT NULL,
+    symbol TEXT NOT NULL,
+    shares INTEGER NOT NULL,
+    entry_price REAL NOT NULL,
+    stop_price REAL,
+    account_size REAL,              -- book size at open, for exposure %
+    thesis_id INTEGER,              -- link back to the reasoning
+    status TEXT DEFAULT 'OPEN',     -- OPEN | CLOSED
+    closed TEXT,
+    exit_price REAL,
+    realized_pnl REAL,              -- rupees, set on close
+    note TEXT,
+    FOREIGN KEY (thesis_id) REFERENCES theses(id)
+);
 """
 
 
@@ -136,6 +152,69 @@ class Ledger:
                       if s["pnls"] else None}
                 for src, s in by_source.items()},
         }
+
+    # ------------------------------------------------------------------
+    # Positions — what you actually took (real exposure, not a thesis count)
+    # ------------------------------------------------------------------
+
+    def open_position(self, symbol: str, shares: int, entry_price: float,
+                      stop_price: float | None = None, account_size: float | None = None,
+                      thesis_id: int | None = None, note: str = "",
+                      opened: str | None = None) -> int:
+        cur = self.conn.execute(
+            """INSERT INTO positions (opened, symbol, shares, entry_price,
+               stop_price, account_size, thesis_id, note)
+               VALUES (?,?,?,?,?,?,?,?)""",
+            (opened or date.today().isoformat(), symbol.upper(), int(shares),
+             entry_price, stop_price, account_size, thesis_id, note))
+        self.conn.commit()
+        return cur.lastrowid
+
+    def open_positions(self) -> list[sqlite3.Row]:
+        return list(self.conn.execute(
+            "SELECT * FROM positions WHERE status='OPEN' ORDER BY opened DESC"))
+
+    def get_position(self, pos_id: int) -> sqlite3.Row | None:
+        return self.conn.execute(
+            "SELECT * FROM positions WHERE id=?", (pos_id,)).fetchone()
+
+    def positions_opened_on(self, day: str) -> int:
+        """Open positions taken on a given date — backs the trades-per-day cap."""
+        return self.conn.execute(
+            "SELECT COUNT(*) FROM positions WHERE opened=?", (day,)).fetchone()[0]
+
+    def close_position(self, pos_id: int, exit_price: float, note: str = "") -> dict:
+        row = self.get_position(pos_id)
+        if not row:
+            raise ValueError(f"position {pos_id} not found")
+        if row["status"] != "OPEN":
+            raise ValueError(f"position {pos_id} is already {row['status']}")
+        realized = (exit_price - row["entry_price"]) * row["shares"]
+        self.conn.execute(
+            """UPDATE positions SET status='CLOSED', closed=?, exit_price=?,
+               realized_pnl=?, note=COALESCE(NULLIF(?, ''), note) WHERE id=?""",
+            (date.today().isoformat(), exit_price, realized, note, pos_id))
+        self.conn.commit()
+        cost = row["entry_price"] * row["shares"]
+        return {"position_id": pos_id, "symbol": row["symbol"],
+                "realized_pnl": round(realized, 2),
+                "pnl_pct": (realized / cost) if cost else None}
+
+    def exposure(self) -> dict:
+        """Aggregate open exposure: rupees invested, capital at risk (portfolio
+        'heat'), and the open count. A position with no stop counts its FULL value
+        as at-risk — no defined exit means all of it is exposed."""
+        rows = self.open_positions()
+        invested = sum(r["shares"] * r["entry_price"] for r in rows)
+        at_risk = 0.0
+        for r in rows:
+            value = r["shares"] * r["entry_price"]
+            if r["stop_price"] is None:
+                at_risk += value
+            else:
+                at_risk += r["shares"] * max(0.0, r["entry_price"] - r["stop_price"])
+        return {"open": len(rows), "invested": round(invested, 2),
+                "at_risk": round(at_risk, 2), "positions": rows}
 
     def close(self):
         self.conn.close()

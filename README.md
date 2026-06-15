@@ -47,8 +47,10 @@ python run.py scan-catalysts                  # supplier-linkage news scan
 python run.py discover                         # auto-discover unmapped suppliers in theme news
 python run.py guidance HFCL --year 2024 --guided "20% rev" --delivered "12%" --missed
 python run.py thesis HFCL --catalyst "Jio fibre capex" --save
-python run.py size --thesis 1 --account 200000 # position size + circuit breakers
-python run.py ledger                          # open calls
+python run.py size --thesis 1 --account 200000 --open  # size + circuit breakers, log position
+python run.py positions                       # open positions + total exposure/heat
+python run.py close 1                          # realize P&L (price auto-fetched)
+python run.py ledger                          # open calls (theses)
 python run.py grade 1 --verdict RIGHT --note "theme played out"  # --price auto-fetched
 python run.py report                          # forward-track performance
 ```
@@ -94,10 +96,10 @@ run.py          CLI orchestrator
 - **M2 (done):** concall guidance history feeds the credibility flag
   (`guidance`); RSS sources beyond Google News (ET/MC/BS); entity resolution for
   buyer→supplier auto-discovery (`discover`).
-- **M3 (started):** risk layer first — position sizing + circuit breakers
-  (`size`); then the paper-trading loop on a live (free) broker feed. The sizing
-  guardrails land before any broker integration (a feed is premature until the
-  ledger validates the model).
+- **M3 (in progress):** risk layer — position sizing + circuit breakers (`size`),
+  real position/exposure tracking with portfolio-heat limits (`positions`/`close`),
+  auto-fetched prices. Still to come: the paper-trading loop on a live (free)
+  broker feed (premature until the ledger validates the model).
 - **M4:** honest backtest harness only where point-in-time data exists.
 ```
 ```

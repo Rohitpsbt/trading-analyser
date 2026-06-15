@@ -147,11 +147,15 @@ RISK = {
     # conviction tier (HIGH gets the full cap; LOW gets a probe). A sizing tool,
     # never an order — you review and execute.
     "conviction_sizing": {"LOW": 0.4, "MEDIUM": 0.7, "HIGH": 1.0},
-    # Circuit breakers (the README's 'tiny live capital' rung). Enforced as
-    # warnings by `run.py size` against the ledger, treating each saved thesis as
-    # a paper position until real position tracking arrives.
-    "max_open_positions": 8,        # cap concurrent paper positions
-    "max_trades_per_day": 3,        # cap new calls logged in a single day
+    # Circuit breakers (the README's 'tiny live capital' rung). Checked against
+    # the positions ledger by `run.py size`; a breach blocks `--open` unless
+    # --force is passed.
+    "max_open_positions": 8,        # cap concurrent open positions
+    "max_trades_per_day": 3,        # cap new positions opened in a single day
+    # Aggregate capital-at-risk across all open positions (portfolio 'heat'),
+    # as a fraction of the book. The single most important guardrail: it bounds
+    # how much you can lose if every open position hits its stop at once.
+    "max_portfolio_heat_pct": 0.06,
 }
 
 # ---------------------------------------------------------------------------

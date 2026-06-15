@@ -77,32 +77,38 @@ silently disables the entire catalyst edge.
    python run.py thesis HFCL --catalyst "Jio fibre capex order" --second-opinion --save
    ```
 4. **Size anything you intend to act on** — conviction-scaled position within the
-   max-position cap, with a stop, capital-at-risk, and circuit-breaker checks
-   (open positions + trades/day). Decision-support; it never places an order:
+   max-position cap, with a stop, capital-at-risk, and a 2R reference target. Add
+   `--open` to log it as a paper position. Circuit breakers (open positions,
+   trades/day, portfolio heat) **block** `--open` if tripped; `--force` overrides
+   (you own the risk). Decision-support; it never places an order:
    ```bash
-   python run.py size --thesis 1 --account 200000      # pulls symbol/entry/conviction
+   python run.py size --thesis 1 --account 200000 --open  # pulls symbol/entry/conviction
    python run.py size HFCL --account 200000 --entry 512.50 --conviction HIGH
    ```
-5. **Review open calls**:
+5. **Review open calls and positions**:
    ```bash
-   python run.py ledger
+   python run.py ledger        # theses (the reasoning)
+   python run.py positions     # paper positions + total exposure / portfolio heat
    ```
-6. **Grade as reality unfolds** (days/weeks later) — verdict ∈
-   RIGHT | WRONG | EARLY | NOISE. Omit `--price` to auto-fetch the current price
-   for the thesis's symbol (pass it explicitly to grade at a specific level):
-   ```bash
-   python run.py grade 1 --verdict RIGHT --note "theme played out"  # auto-priced
-   python run.py grade 1 --price 512.50 --verdict RIGHT             # explicit
-   ```
+6. **Resolve as reality unfolds** (days/weeks later). Two distinct acts:
+   - **Close a position** to realize capital P&L (omit `--price` to auto-fetch):
+     ```bash
+     python run.py close 1 --note "target hit"
+     ```
+   - **Grade the thesis** to judge the analysis — verdict ∈ RIGHT | WRONG | EARLY
+     | NOISE (this validates the *model*, separate from trade P&L):
+     ```bash
+     python run.py grade 1 --verdict RIGHT --note "theme played out"  # --price auto-fetched
+     ```
 7. **Forward-track performance** (hit rate, P&L, P&L by conviction, and — if you
    use second-opinion — a per-model scoreboard under `by_source`):
    ```bash
    python run.py report
    ```
 
-Add `--mock` to `screen` / `scan-catalysts` / `thesis` / `grade` to exercise the
-pipeline with deterministic synthetic data and no network (on `grade`, `--mock`
-sources the auto-fetched price from the mock provider).
+Add `--mock` to `screen` / `scan-catalysts` / `thesis` / `grade` / `close` to
+exercise the pipeline with deterministic synthetic data and no network (on
+`grade`/`close`, `--mock` sources the auto-fetched price from the mock provider).
 
 ## LLM cost & rate limits (especially Gemini)
 
@@ -132,7 +138,7 @@ Back it up yourself; it *is* your track record.
 ## Tests
 
 ```bash
-python -m pytest        # 121 tests, no network required
+python -m pytest        # 132 tests, no network required
 ```
 
 ## Deployment ladder (don't skip steps — from the README)

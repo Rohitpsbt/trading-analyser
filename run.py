@@ -304,15 +304,84 @@ def cmd_size(args):
     for n in plan.notes:
         print(f"   ! {n}")
 
-    breaches = circuit_breakers(led)
-    led.close()
+    breaches = circuit_breakers(led, prospective=plan)
     print("\nCircuit breakers:")
     if not breaches:
-        print("   OK — within open-position and trades-per-day caps.")
+        print("   OK — within open-position, trades-per-day and heat caps.")
     else:
         for b in breaches:
             print(f"   ✗ {b}")
-    print("\n(sizing is decision-support; you review and place any order yourself)")
+
+    # Optionally persist the plan as an open paper position.
+    if args.open:
+        thesis_id = args.thesis if args.thesis is not None else None
+        if plan.shares <= 0:
+            print("\nNot opened — plan has zero shares.")
+        elif breaches and not args.force:
+            print("\nNot opened — circuit breaker(s) tripped. Re-run with --force "
+                  "to override (you own the risk).")
+        else:
+            pid = led.open_position(
+                plan.symbol, plan.shares, plan.entry, stop_price=plan.stop_price,
+                account_size=plan.account_size, thesis_id=thesis_id,
+                note=("forced past breaker" if (breaches and args.force) else ""))
+            print(f"\nOpened paper position #{pid}: {plan.shares} {plan.symbol} "
+                  f"@ ₹{plan.entry:,.2f}"
+                  + (" (FORCED past circuit breaker)" if (breaches and args.force) else ""))
+    else:
+        print("\n(decision-support; add --open to log this as a paper position)")
+    led.close()
+
+
+def cmd_positions(args):
+    led = Ledger()
+    exp = led.exposure()
+    rows = exp["positions"]
+    print(f"\nOpen positions ({exp['open']})\n" + "-" * 64)
+    for r in rows:
+        value = r["shares"] * r["entry_price"]
+        stop = f"₹{r['stop_price']:,.2f}" if r["stop_price"] is not None else "none"
+        link = f" thesis#{r['thesis_id']}" if r["thesis_id"] else ""
+        print(f"#{r['id']:<3} {r['opened']}  {r['symbol']:<10} "
+              f"{r['shares']:>5} @ ₹{r['entry_price']:,.2f}  "
+              f"value ₹{value:,.0f}  stop {stop}{link}")
+    if rows:
+        print("-" * 64)
+        print(f"Invested ₹{exp['invested']:,.0f}   "
+              f"capital at risk (heat) ₹{exp['at_risk']:,.0f}   "
+              f"(heat cap {config.RISK['max_portfolio_heat_pct']:.0%} of book)")
+    led.close()
+
+
+def cmd_close(args):
+    led = Ledger()
+    row = led.get_position(args.id)
+    if not row:
+        print(f"position #{args.id} not found.")
+        led.close()
+        return
+    if row["status"] != "OPEN":
+        print(f"position #{args.id} is already {row['status']}.")
+        led.close()
+        return
+
+    price = args.price
+    if price is None:
+        provider = get_provider(use_mock=args.mock)
+        price = provider.get_price(row["symbol"])
+        if price is None:
+            print(f"Could not fetch a price for {row['symbol']} — pass --price.")
+            led.close()
+            return
+        print(f"Fetched {'MOCK' if args.mock else 'live'} price for "
+              f"{row['symbol']}: ₹{price:,.2f}")
+
+    res = led.close_position(args.id, price, args.note or "")
+    led.close()
+    pct = res["pnl_pct"]
+    print(f"Closed position #{res['position_id']} ({res['symbol']}): "
+          f"realized ₹{res['realized_pnl']:,.2f}"
+          + (f" ({pct:+.1%})" if pct is not None else ""))
 
 
 def cmd_report(args):
@@ -451,7 +520,22 @@ def build_parser():
                    help="stop distance as a fraction (default config.RISK)")
     s.add_argument("--thesis", type=int,
                    help="pull symbol/entry/conviction from this saved thesis id")
-    s.set_defaults(func=cmd_size)
+    s.add_argument("--open", action="store_true",
+                   help="log the plan as an open paper position")
+    s.add_argument("--force", action="store_true",
+                   help="open even if a circuit breaker is tripped (you own the risk)")
+    s.set_defaults(func=cmd_size, open=False, force=False)
+
+    s = sub.add_parser("positions",
+                       help="list open paper positions + total exposure/heat")
+    s.set_defaults(func=cmd_positions)
+
+    s = sub.add_parser("close", help="close an open position (realize P&L)"); add_mock(s)
+    s.add_argument("id", type=int)
+    s.add_argument("--price", type=float,
+                   help="exit price; omit to auto-fetch the current price")
+    s.add_argument("--note", default="")
+    s.set_defaults(func=cmd_close)
 
     s = sub.add_parser("report"); s.set_defaults(func=cmd_report)
 

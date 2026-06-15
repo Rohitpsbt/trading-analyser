@@ -16,7 +16,7 @@ position sizing + circuit breakers — deliberately before any broker feed.
 
 - **Full M1 pipeline:** screen → scan-catalysts (supplier-linkage) → thesis →
   ledger → grade → report. Runs in `--mock` and live.
-- **Tested:** 121 pytest tests, no network required. Green as of last run.
+- **Tested:** 132 pytest tests, no network required. Green as of last run.
 - **M2 so far:**
   - **Extra RSS feeds** (ET / Moneycontrol / Business Standard) merged + deduped
     with Google News in `scan-catalysts`; `doctor` checks each feed.
@@ -29,8 +29,15 @@ position sizing + circuit breakers — deliberately before any broker feed.
 - **M3 so far:**
   - **Risk layer** (`sizing.py` + `run.py size`): conviction-scaled position
     sizing within `max_position_pct`, stop-based capital-at-risk, 2R reference
-    target, and circuit breakers (`max_open_positions`, `max_trades_per_day`)
-    checked against the ledger. Decision-support only — never places an order.
+    target. Decision-support only — never places an order.
+  - **Auto-fetch prices**: `grade`/`close` pull the current price when `--price`
+    is omitted (via `provider.get_price`).
+  - **Real position/exposure tracking** (`positions` table; `run.py positions`,
+    `size --open`, `close`): a position = what you actually took (shares/entry/
+    stop/linked thesis). `close` realizes capital P&L; `grade` still judges the
+    thesis. Circuit breakers now read real positions + portfolio **heat**
+    (`max_portfolio_heat_pct`), include the prospective plan, and **block**
+    `size --open` unless `--force`.
 - **Verified live (2026-06-14/15):**
   - yfinance: real fundamentals (e.g. RELIANCE, HFCL), 100% completeness on majors.
   - Google News supplier-linkage: real hits surfacing (NTPC power capex, NTPC
@@ -81,8 +88,9 @@ position sizing + circuit breakers — deliberately before any broker feed.
 - [x] **M2:** more RSS sources beyond Google News; buyer→supplier auto-discovery
   (entity resolution); feed real concall guidance history into the credibility flag.
   *(Next for M2: broaden COMPANY_ALIASES coverage; per-provider model override.)*
-- [~] **M3:** risk layer (sizing + circuit breakers) **done** via `size`;
-  auto-fill grade price from the provider **done** (`grade` without `--price`).
-  Still to do — paper-trading loop on a live (free) broker feed. *(Next for M3:
-  real position/exposure tracking beyond the thesis-as-position proxy.)*
+- [~] **M3:** risk layer (sizing + circuit breakers) **done**; auto-fetch prices
+  **done**; real position/exposure tracking + portfolio-heat breakers **done**
+  (`positions`/`size --open`/`close`). Still to do — paper-trading loop on a live
+  (free) broker feed. *(Next for M3: a `doctor`-style positions/heat summary in
+  `report`, or begin the broker-feed spike once the ledger shows an edge.)*
 - [ ] **M4:** honest backtest harness only where point-in-time data exists.

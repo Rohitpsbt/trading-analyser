@@ -85,22 +85,37 @@ def plan_position(symbol: str, account_size: float, entry: float,
     )
 
 
-def circuit_breakers(ledger, when: str | None = None) -> list[str]:
-    """Check the ledger against the daily/concurrent caps in config.RISK. Returns
-    a list of breach messages (empty = clear to proceed). Treats each saved thesis
-    as a paper position — a reasonable proxy until real position tracking lands."""
+def circuit_breakers(ledger, when: str | None = None,
+                     prospective: PositionPlan | None = None) -> list[str]:
+    """Check the positions ledger against the caps in config.RISK. Returns breach
+    messages (empty = clear). If `prospective` is given (a plan about to be
+    opened), it's included in the open-count and portfolio-heat checks so you see
+    the breach BEFORE taking the position, not after."""
     when = when or date.today().isoformat()
     breaches: list[str] = []
+    exp = ledger.exposure()
 
-    open_n = len(ledger.open_theses())
+    open_n = exp["open"] + (1 if prospective and prospective.shares > 0 else 0)
     max_open = config.RISK["max_open_positions"]
-    if open_n >= max_open:
-        breaches.append(f"OPEN POSITIONS: {open_n} open ≥ cap {max_open} — "
-                        f"close/grade something before adding risk.")
+    if open_n > max_open:
+        breaches.append(f"OPEN POSITIONS: would be {open_n} > cap {max_open} — "
+                        f"close something before adding risk.")
 
-    today_n = ledger.count_created_on(when)
+    today_n = ledger.positions_opened_on(when) + (1 if prospective and prospective.shares > 0 else 0)
     max_day = config.RISK["max_trades_per_day"]
-    if today_n >= max_day:
-        breaches.append(f"TRADES TODAY: {today_n} logged on {when} ≥ cap {max_day} "
+    if today_n > max_day:
+        breaches.append(f"TRADES TODAY: would be {today_n} > cap {max_day} on {when} "
                         f"— overtrading guard; sleep on the next one.")
+
+    # Portfolio heat: aggregate capital-at-risk across open positions (+ the
+    # prospective one), as a fraction of the book.
+    at_risk = exp["at_risk"] + (prospective.risk_value if prospective else 0.0)
+    book = prospective.account_size if prospective else None
+    if book:
+        heat = at_risk / book
+        max_heat = config.RISK["max_portfolio_heat_pct"]
+        if heat > max_heat + 1e-9:
+            breaches.append(f"PORTFOLIO HEAT: total at-risk ₹{at_risk:,.0f} = "
+                            f"{heat:.1%} of book > cap {max_heat:.0%} — trim size "
+                            f"or close a position.")
     return breaches

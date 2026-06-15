@@ -10,7 +10,6 @@ import pytest
 import config
 from sizing import plan_position, circuit_breakers, PositionPlan
 from ledger import Ledger
-from thesis import Thesis
 
 
 # ---------------------------------------------------------------------------
@@ -94,14 +93,8 @@ def temp_ledger(tmp_path, monkeypatch):
     led.close()
 
 
-def _thesis(symbol="HFCL", as_of=None):
-    return Thesis(
-        symbol=symbol, name=symbol, as_of=as_of or date.today().isoformat(),
-        catalyst="c", conviction="MEDIUM", suggested_action="BUY_CANDIDATE",
-        reference_price=100.0, fundamental_summary="", credibility_flag="NEUTRAL",
-        bull_case="", bear_case="", exit_conditions="", redteam={}, narrated=False,
-        source="offline",
-    )
+def _open(led, symbol="HFCL", shares=10, entry=100.0, stop=88.0, opened=None):
+    return led.open_position(symbol, shares, entry, stop_price=stop, opened=opened)
 
 
 class TestCircuitBreakers:
@@ -110,31 +103,54 @@ class TestCircuitBreakers:
 
     def test_trips_max_trades_per_day(self, temp_ledger, monkeypatch):
         monkeypatch.setitem(config.RISK, "max_trades_per_day", 2)
-        for _ in range(2):
-            temp_ledger.record(_thesis())
+        today = date.today().isoformat()
+        for _ in range(3):
+            _open(temp_ledger, opened=today)
         breaches = circuit_breakers(temp_ledger)
         assert any("TRADES TODAY" in b for b in breaches)
 
     def test_trips_max_open_positions(self, temp_ledger, monkeypatch):
         monkeypatch.setitem(config.RISK, "max_open_positions", 2)
-        # use distinct dates so the per-day breaker doesn't also fire
-        temp_ledger.record(_thesis(as_of="2026-01-01"))
-        temp_ledger.record(_thesis(as_of="2026-01-02"))
-        breaches = circuit_breakers(temp_ledger)
+        # distinct dates so the per-day breaker doesn't also fire
+        _open(temp_ledger, opened="2026-01-01")
+        _open(temp_ledger, opened="2026-01-02")
+        _open(temp_ledger, opened="2026-01-03")
+        breaches = circuit_breakers(temp_ledger, when="2026-01-04")
         assert any("OPEN POSITIONS" in b for b in breaches)
 
-    def test_count_created_on_isolates_by_date(self, temp_ledger):
-        temp_ledger.record(_thesis(as_of="2026-01-01"))
-        temp_ledger.record(_thesis(as_of="2026-01-01"))
-        temp_ledger.record(_thesis(as_of="2026-01-02"))
-        assert temp_ledger.count_created_on("2026-01-01") == 2
-        assert temp_ledger.count_created_on("2026-01-02") == 1
-        assert temp_ledger.count_created_on("2026-01-03") == 0
+    def test_positions_opened_on_isolates_by_date(self, temp_ledger):
+        _open(temp_ledger, opened="2026-01-01")
+        _open(temp_ledger, opened="2026-01-01")
+        _open(temp_ledger, opened="2026-01-02")
+        assert temp_ledger.positions_opened_on("2026-01-01") == 2
+        assert temp_ledger.positions_opened_on("2026-01-02") == 1
+        assert temp_ledger.positions_opened_on("2026-01-03") == 0
 
-    def test_graded_thesis_not_counted_as_open(self, temp_ledger, monkeypatch):
+    def test_closed_position_not_counted_as_open(self, temp_ledger, monkeypatch):
         monkeypatch.setitem(config.RISK, "max_open_positions", 1)
-        tid = temp_ledger.record(_thesis(as_of="2026-01-01"))
-        temp_ledger.grade(tid, 110.0, "RIGHT", "done")
-        # graded → no longer OPEN, so the open-position breaker stays clear
+        pid = _open(temp_ledger, opened="2026-01-01")
+        temp_ledger.close_position(pid, 110.0, "done")
+        # closed → no longer OPEN, so the open-position breaker stays clear
         breaches = circuit_breakers(temp_ledger, when="2026-01-02")
         assert not any("OPEN POSITIONS" in b for b in breaches)
+
+    def test_prospective_plan_counts_toward_open_cap(self, temp_ledger, monkeypatch):
+        monkeypatch.setitem(config.RISK, "max_open_positions", 1)
+        _open(temp_ledger, opened="2026-01-01")  # 1 open = at cap
+        plan = plan_position("STLTECH", 100_000, 100.0, "HIGH")  # would be the 2nd
+        breaches = circuit_breakers(temp_ledger, when="2026-01-02", prospective=plan)
+        assert any("OPEN POSITIONS" in b for b in breaches)
+
+    def test_portfolio_heat_breach(self, temp_ledger, monkeypatch):
+        monkeypatch.setitem(config.RISK, "max_portfolio_heat_pct", 0.02)
+        # one open position risking 1200 (100 sh * (100-88)); prospective adds more
+        _open(temp_ledger, shares=100, entry=100.0, stop=88.0, opened="2026-01-01")
+        plan = plan_position("STLTECH", 100_000, 100.0, "HIGH", stop_pct=0.12)
+        breaches = circuit_breakers(temp_ledger, when="2026-01-02", prospective=plan)
+        assert any("PORTFOLIO HEAT" in b for b in breaches)
+
+    def test_heat_within_cap_is_clear(self, temp_ledger, monkeypatch):
+        monkeypatch.setitem(config.RISK, "max_portfolio_heat_pct", 0.06)
+        plan = plan_position("HFCL", 1_000_000, 100.0, "LOW", stop_pct=0.12)
+        breaches = circuit_breakers(temp_ledger, prospective=plan)
+        assert not any("PORTFOLIO HEAT" in b for b in breaches)
