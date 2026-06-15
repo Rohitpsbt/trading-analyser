@@ -41,7 +41,7 @@ EXCHANGE_SUFFIX = ".NS"
 UNIVERSE = [
     "RELIANCE", "TCS", "HDFCBANK", "INFY", "ICICIBANK", "BHARTIARTL",
     "LT", "SBIN", "ITC", "HINDUNILVR", "BAJFINANCE", "MARUTI",
-    "SUNPHARMA", "TATAMOTORS", "TATASTEEL", "POWERGRID", "NTPC",
+    "SUNPHARMA", "TATASTEEL", "POWERGRID", "NTPC",
     "ADANIPORTS", "ADANIENT", "HFCL", "STLTECH", "KEC", "KALPATPOWR",
     "CGPOWER", "BHEL", "SIEMENS", "ABB", "POLYCAB", "KEI", "DIXON",
 ]
@@ -164,6 +164,21 @@ LLM_CACHE = {
 }
 
 DB_PATH = os.getenv("TA_DB_PATH", "trading_analyser.db")
+
+# ---------------------------------------------------------------------------
+# News feeds — supplementary to Google News RSS search
+# ---------------------------------------------------------------------------
+# Extra RSS feeds are fetched ONCE per scan run and filtered locally by theme
+# keywords. Failures are non-fatal (reported in scan errors, not raised).
+# Add, remove, or reorder freely; title-based dedup prevents double-counting.
+NEWS_FEEDS = {
+    "extra_rss": [
+        "https://economictimes.indiatimes.com/markets/rss.cms",
+        "https://economictimes.indiatimes.com/industry/rss.cms",
+        "https://www.moneycontrol.com/rss/business.xml",
+        "https://www.business-standard.com/rss/markets-106.rss",
+    ],
+}
 
 
 def ticker_to_yf(symbol: str) -> str:

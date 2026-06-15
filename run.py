@@ -212,14 +212,24 @@ def cmd_doctor(args):
         print(f"  FAILED: {type(e).__name__}: {e}")
 
     # News feed (Google News RSS) reachability — also exercises the SSL fix.
+    monitor = NewsMonitor()
     print("\nNews feed (Google News RSS):")
-    items, err = NewsMonitor().fetch("Reliance capex", limit=3)
+    items, err = monitor.fetch("Reliance capex", limit=3)
     if err:
         print(f"  FAILED: {err}")
     else:
         print(f"  OK — fetched {len(items)} headlines")
         for it in items[:2]:
             print(f"     - {it.title[:70]}")
+
+    # Extra RSS feeds (ET / Moneycontrol / Business Standard).
+    extra_urls = config.NEWS_FEEDS.get("extra_rss", [])
+    print(f"\nExtra RSS feeds ({len(extra_urls)} configured):")
+    for url in extra_urls:
+        label = url.split("/")[2].replace("www.", "")
+        items, err = monitor.fetch_static(url, limit=3)
+        status = f"FAILED — {err}" if err else f"OK — {len(items)} headlines"
+        print(f"  {label:<40} {status}")
 
     print("\nFix anything that FAILED above before logging live calls.")
 

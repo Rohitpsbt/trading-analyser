@@ -48,8 +48,7 @@ the **forward paper-tracking** phase per the README's deployment ladder
 **Housekeeping**
 - [ ] **Rotate the Gemini API key** — it was pasted in chat earlier, so treat it
   as exposed. (Groq key already rotated.)
-- [ ] **Universe hygiene:** `config.UNIVERSE` has stale `TATAMOTORS` (404s on
-  Yahoo post-demerger). Curating the universe + linkage map is the real edge.
+- [x] **Universe hygiene:** Removed stale `TATAMOTORS` (404s post-demerger).
 - [x] Removed redundant `trading_analyser.zip` and merged `Build.md` (the build
   brief) into [README.md](README.md) — docs are now README / RUNBOOK / CLAUDE / MEMORY.
 

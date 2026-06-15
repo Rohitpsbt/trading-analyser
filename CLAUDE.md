@@ -82,7 +82,5 @@ current status / what we're working on.
 
 - The ledger DB is your real track record — it's git-ignored on purpose; back it
   up yourself.
-- `config.UNIVERSE` still contains `TATAMOTORS`, which 404s on Yahoo post-demerger
-  (handled gracefully; just stale).
 - `TA_LLM_MODEL` applies to whichever provider is active — there's no per-provider
   model override yet, so don't set it globally if you switch providers often.

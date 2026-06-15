@@ -119,9 +119,8 @@ decision-support; you review and execute.
 
 ## Known follow-ups (not blockers)
 
-- **Universe hygiene:** `config.UNIVERSE` has `TATAMOTORS`, which 404s on Yahoo
-  after the Tata Motors demerger. The screen skips it gracefully; update the
-  symbol when convenient. Curating the universe + linkage map is the real edge.
+- **Universe hygiene:** Curating the universe + linkage map is the real edge;
+  thin or 404ing symbols are handled gracefully by the screen but add noise.
 - **Roadmap M2–M4** (more RSS sources, buyer→supplier auto-discovery, concall
   guidance history, paper-trading automation, point-in-time backtest) — see the
   README roadmap. Foundation comes first.
