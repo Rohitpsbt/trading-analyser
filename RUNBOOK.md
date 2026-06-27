@@ -110,6 +110,27 @@ Add `--mock` to `screen` / `scan-catalysts` / `thesis` / `grade` / `close` to
 exercise the pipeline with deterministic synthetic data and no network (on
 `grade`/`close`, `--mock` sources the auto-fetched price from the mock provider).
 
+## Command reference (full surface)
+
+| Command | What it does | Key flags |
+|---|---|---|
+| `doctor` | Preflight: LLM key/model + yfinance + each news feed | — |
+| `screen` | Rank `config.UNIVERSE` on fundamentals | `--top N`, `--mock` |
+| `scan-catalysts` | Supplier-linkage news scan; names specific suppliers when a headline does | `--mock` |
+| `discover` | Auto-discover universe names in theme news not yet in `LINKAGE_MAP` | `--mock` |
+| `guidance [SYM]` | View (no flags) or add concall guided-vs-delivered history | `--year`, `--guided`, `--delivered`, `--met`/`--missed` |
+| `thesis SYM` | Draft a dated thesis; `--save` logs it | `--catalyst`, `--save`, `--second-opinion`/`-2`, `--fresh`, `--mock` |
+| `size [SYM]` | Position sizing + circuit breakers; `--open` logs a position | `--account` (required), `--entry`, `--conviction`, `--stop-pct`, `--thesis ID`, `--open`, `--force` |
+| `positions` | List open positions + total exposure / portfolio heat | — |
+| `close ID` | Close a position, realize P&L (price auto-fetched if omitted) | `--price`, `--note`, `--mock` |
+| `ledger` | List open theses (the reasoning) | — |
+| `grade ID` | Grade a thesis: RIGHT / WRONG / EARLY / NOISE (validates the model) | `--verdict` (required), `--price`, `--note`, `--mock` |
+| `report` | Forward-track performance: hit rate, P&L, by-conviction, by-source | — |
+
+Two distinct ledgers in the same DB: **theses** (graded for analysis quality via
+`grade`) and **positions** (closed for capital P&L via `close`). `size --thesis
+ID --open` ties them — a position carries its `thesis_id`.
+
 ## LLM cost & rate limits (especially Gemini)
 
 LLM responses are **cached on disk** (`.llm_cache.json`, git-ignored), keyed by
